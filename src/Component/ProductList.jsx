@@ -79,23 +79,10 @@ function ProductList({ products, onAdd, onEdit, onRemove, onBillComplete }) {
       setEditingIndex(null);
     } else {
       onAdd({ ...product, id: Date.now() });
-      // Update stock quantity in DB
-      try {
-        const res = await axios.get(`http://localhost:5000/api/products`);
-        const match = res.data.find((p) => p.productCode === product.code);
-        if (match) {
-          const updatedQty = match.stockQuantity - product.quantity;
-          await axios.put(`http://localhost:5000/api/products/${match._id}`, {
-            stockQuantity: updatedQty,
-          });
-        }
-      } catch (err) {
-        console.error('Error updating stock quantity', err);
-      }
     }
+
     setProduct(initialProduct);
   };
-
   const handleEdit = (index) => {
     const item = products[index];
     setProduct({ ...item });
@@ -110,8 +97,9 @@ function ProductList({ products, onAdd, onEdit, onRemove, onBillComplete }) {
   const filteredProducts = products.filter(
     (item) => item.code.toLowerCase().includes(searchTerm.toLowerCase()) || item.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
+  const calculateTotal = () => filteredProducts.reduce((sum, item) => sum + item.price, 0);
 
-  const calculateTotal = () => filteredProducts.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
   return (
     <div className="flex flex-col p-4 bg-gray-50">
       {/* Header Section */}
