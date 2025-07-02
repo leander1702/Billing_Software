@@ -33,7 +33,7 @@ const UserLogin = () => {
         adminData.password === password
       ) {
         console.log("Login success", adminData);
-        navigate("/admin");
+        navigate("/");
       } else {
         setError("Invalid phone number or password");
       }
