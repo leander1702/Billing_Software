@@ -1,4 +1,5 @@
-import { useState } from 'react';
+// Component/BillingSystem.jsx
+import React, { useState, useEffect, useRef } from 'react';
 import ProductList from './ProductList';
 import CustomerDetails from './CustomerDetails';
 import BillSummary from './BillSummary';
@@ -6,8 +7,17 @@ import PaymentModal from './PaymentModal';
 import { toast } from 'react-toastify';
 import CashierDetails from './CashierDetails';
 
-const BillingSystem = () => {
-  // customerId is now derived, or used as a placeholder for new customer ID generation
+const BillingSystem = ({
+  onFocusProductSearch,
+  onFocusProductCode,
+  onFocusQuantity,
+  onTriggerAddProduct,
+  onFocusCustomerName,
+  onFocusPhoneNumber,
+  onTriggerHold,
+  onTriggerPrint,
+  onTriggerPayment,
+}) => {
   const [customer, setCustomer] = useState({
     id: '',
     name: '',
@@ -18,8 +28,65 @@ const BillingSystem = () => {
   const [currentBill, setCurrentBill] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isCheckingCustomer, setIsCheckingCustomer] = useState(false);
+  const [heldBill, setHeldBill] = useState(null); // This holds the actual held bill data
+  const [isHeld, setIsHeld] = useState(false); // This indicates if the *current* bill displayed is the held one
 
-  // Handle new or existing customer
+  const handleHoldToggle = () => {
+    if (heldBill && products.length === 0) {
+      // Scenario 1: There's a held bill, and the current workspace is empty.
+      // This means the user wants to UNHOLD the previous bill.
+      setCustomer(heldBill.customer);
+      setProducts(heldBill.products);
+      setHeldBill(null); // Clear the held bill after restoring
+      setIsHeld(true); // Now the current bill *is* the held bill
+      toast.info('Held bill restored!');
+    } else if (products.length > 0) {
+      // Scenario 2: There are products in the current workspace.
+      // This means the user wants to HOLD the current bill.
+      setHeldBill({ customer, products }); // Save the current bill
+      setCustomer({ id: '', name: '', contact: '' }); // Clear current workspace
+      setProducts([]); // Clear current workspace
+      setIsHeld(false); // The workspace is no longer showing the held bill (it's empty)
+      toast.info('Bill held successfully! Starting a new bill.');
+    } else {
+      // Scenario 3: No products in current workspace, and no held bill to unhold.
+      toast.warn('Nothing to hold or unhold.');
+    }
+  };
+
+
+  const handlePrint = () => {
+    if (products.length === 0) {
+      toast.error('No products to print in the bill.');
+      return;
+    }
+    const billData = {
+      customer,
+      products,
+      subtotal: products.reduce((sum, item) => {
+        const base = item.mrp * item.quantity;
+        const discount = base * (item.discount / 100);
+        return sum + (base - discount);
+      }, 0),
+      gst: products.reduce((sum, item) => {
+        const base = item.mrp * item.quantity;
+        const discount = base * (item.discount / 100);
+        const discounted = base - discount;
+        return sum + (discounted * item.gst) / 100;
+      }, 0),
+      total: products.reduce((sum, item) => {
+        const base = item.mrp * item.quantity;
+        const discount = base * (item.discount / 100);
+        const discounted = base - discount;
+        const gst = (discounted * item.gst) / 100;
+        return sum + discounted + gst;
+      }, 0),
+    };
+
+    console.log("Printing bill", billData);
+    toast.success('Print command sent (check console for bill data)!');
+  };
+
   const handleCustomerSubmit = async (customerData) => {
     try {
       setIsCheckingCustomer(true);
@@ -27,28 +94,27 @@ const BillingSystem = () => {
       if (!res.ok) throw new Error('Failed to fetch bills');
       const bills = await res.json();
 
-      // Check for existing customer
       const existing = bills.find(
         (bill) => bill.customer.contact === customerData.contact
       );
 
       if (existing) {
-        toast.info('Existing customer detected. Auto-filling details.'); // Changed to toast.info
+        toast.info('Existing customer detected. Auto-filling details.');
         setCustomer({
           id: existing.customer.id,
           name: existing.customer.name,
           contact: existing.customer.contact,
         });
       } else {
-        // Get max ID from all bills. Filter for valid numbers to prevent NaN issues.
         const allCustomerIds = bills.map((bill) => parseInt(bill.customer.id)).filter(id => !isNaN(id));
         const maxId = allCustomerIds.length > 0 ? Math.max(...allCustomerIds) : 1000;
         const newId = maxId + 1;
 
         setCustomer({
           ...customerData,
-          id: newId.toString(), // Ensure ID is string if your backend expects it as such
+          id: newId.toString(),
         });
+        toast.success(`New customer ID assigned: ${newId}`);
       }
     } catch (error) {
       console.error('Error checking customer:', error);
@@ -59,34 +125,35 @@ const BillingSystem = () => {
   };
 
   const handleEditCustomer = () => {
-    // Implement actual customer editing logic here if needed.
-    // For now, it just logs.
     console.log('Edit customer initiated');
-    toast.info('Customer editing feature coming soon!'); // Example feedback
+    toast.info('Customer editing feature coming soon!');
   };
 
   const handleAddProduct = (product) => {
     setProducts([...products, product]);
+    setIsHeld(false); // Any new product means it's not the held bill anymore
   };
 
   const handleEditProduct = (index, updatedProduct) => {
     const newProducts = [...products];
     newProducts[index] = updatedProduct;
     setProducts(newProducts);
+    setIsHeld(false); // Editing means it's no longer the pristine held bill
   };
 
   const handleRemoveProduct = (index) => {
     const newProducts = [...products];
     newProducts.splice(index, 1);
     setProducts(newProducts);
+    setIsHeld(false); // Removing means it's no longer the pristine held bill
   };
 
   const calculateSubtotal = () =>
-    products.reduce((total, product) => total + product.price, 0); // Changed to product.price
+    products.reduce((total, product) => total + product.price, 0);
 
   const calculateGst = () =>
     products.reduce(
-      (total, product) => total + (product.price * (product.gst || 0)) / 100, // Changed to product.price
+      (total, product) => total + (product.price * (product.gst || 0)) / 100,
       0
     );
 
@@ -99,8 +166,12 @@ const BillingSystem = () => {
       contact: '',
     });
     setProducts([]);
-    setCurrentBill(null); // Clear current bill on new customer
+    setCurrentBill(null);
+    setIsHeld(false); // Starting a new bill, so the current workspace is not 'held'
+    // Do NOT clear heldBill here. It remains so you can Unhold it later.
+    toast.info('New bill started!');
   };
+
 
   const handleProceedToPayment = () => {
     if (!customer.id || !customer.name || !customer.contact) {
@@ -123,8 +194,7 @@ const BillingSystem = () => {
       gst,
       total,
       date: new Date().toISOString(),
-      // Ensure customer.id is present before forming billNumber
-      billNumber: `BILL-${customer.id || 'N/A'}`,
+      billNumber: `BILL-${customer.id || 'N/A'}-${Date.now()}`,
     });
     setShowPaymentModal(true);
   };
@@ -135,20 +205,19 @@ const BillingSystem = () => {
       return;
     }
 
-    // Use values from currentBill, which should be pre-calculated
     const completeBill = {
       customer: currentBill.customer,
       products: currentBill.products,
       subtotal: currentBill.subtotal,
       gst: currentBill.gst,
-      total: currentBill.total, // Use the pre-calculated total
+      total: currentBill.total,
       payment: {
         method: paymentDetails.method,
         amountPaid: paymentDetails.amountPaid,
         transactionId: paymentDetails.transactionId || '',
       },
-      billNumber: currentBill.billNumber, // Use the pre-calculated bill number
-      date: currentBill.date, // Use the pre-calculated date
+      billNumber: currentBill.billNumber,
+      date: currentBill.date,
     };
 
     console.log("✅ Sending completeBill to backend:", completeBill);
@@ -171,7 +240,7 @@ const BillingSystem = () => {
       const data = await res.json();
       console.log('✅ Bill saved successfully:', data);
       toast.success('Payment successful and bill saved!');
-      handleFinalClose();
+      handleFinalClose(); // Call handleFinalClose after successful payment
     } catch (err) {
       console.error('❌ Error saving bill:', err.message);
       toast.error(`Failed to save bill: ${err.message}. Please try again.`);
@@ -182,24 +251,34 @@ const BillingSystem = () => {
 
   const handleFinalClose = () => {
     setShowPaymentModal(false);
-    handleNewCustomer();
+    setCustomer({ id: '', name: '', contact: '' });
+    setProducts([]);
+    setCurrentBill(null);
+    setIsHeld(false); // The current workspace is now empty, it's not a held bill.
+    // IMPORTANT: heldBill is *NOT* cleared here. It persists,
+    // allowing the "Unhold" button to appear when the workspace is empty.
+    toast.info('Ready for a new bill!');
   };
 
   const nextCustomerIdDisplay = customer.id || 'New Customer';
 
   return (
-    <div className=" bg-gradient-to-br from-blue-50 to-blue-100 font-inter">
-      <div className="mx-auto p-2"> {/* Added p-2 for overall padding */}
-        <div className="flex flex-col lg:flex-row gap-2"> {/* Increased gap for better spacing */}
-          <div className="lg:w-3/4"> {/* ProductList takes 3/4 width         on large screens */}
+    <div className="bg-gradient-to-br from-blue-50 to-blue-100 font-inter max-h-screen">
+      <div className="mx-auto p-2 max-w-full">
+        <div className="flex flex-col lg:flex-row gap-2">
+          <div className="lg:w-3/4">
             <ProductList
               products={products}
               onAdd={handleAddProduct}
               onEdit={handleEditProduct}
               onRemove={handleRemoveProduct}
+              onFocusProductSearch={onFocusProductSearch}
+              onFocusProductCode={onFocusProductCode}
+              onFocusQuantity={onFocusQuantity}
+              onTriggerAddProduct={onTriggerAddProduct}
             />
           </div>
-          <div className="lg:w-1/4 flex flex-col gap-2"> {/* Right section takes 1/4 width, vertically stacked */}
+          <div className="lg:w-1/4 flex flex-col gap-3.5">
             <CashierDetails />
             <CustomerDetails
               customer={customer}
@@ -207,15 +286,20 @@ const BillingSystem = () => {
               onEdit={handleEditCustomer}
               nextCustomerId={nextCustomerIdDisplay}
               isCheckingCustomer={isCheckingCustomer}
+              onFocusCustomerName={onFocusCustomerName}
+              onFocusPhoneNumber={onFocusPhoneNumber}
             />
             <BillSummary
               customer={customer}
               products={products}
-              subtotal={calculateSubtotal()}
-              gst={calculateGst()}
-              total={calculateTotal()}
-              onNewCustomer={handleNewCustomer}
               onProceedToPayment={handleProceedToPayment}
+              onPrint={handlePrint}
+              isHeld={isHeld}
+              onHoldToggle={handleHoldToggle}
+              heldBillExists={!!heldBill} 
+              onTriggerHold={onTriggerHold}
+              onTriggerPrint={onTriggerPrint}
+              onTriggerPayment={onTriggerPayment}
             />
           </div>
         </div>

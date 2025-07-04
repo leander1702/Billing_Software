@@ -1,48 +1,51 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import logo from '../assets/ATS LOGO WHITE (1).svg';
 
 const Header = () => {
-    const navigate = useNavigate();
     const location = useLocation();
+    const navigate = useNavigate();
 
-    const [cashierInfo, setCashierInfo] = useState({ counterNo: '', name: '' });
+    const activeTab = location.pathname === '/' ? 'home' : location.pathname.slice(1).toLowerCase();
 
-    const activeTab = location.pathname === '/' ? 'home' : location.pathname.slice(1);
+    const [company, setCompany] = useState({ name: '', logoUrl: '' });
 
     useEffect(() => {
-        const fetchCashierInfo = async () => {
+        const fetchCompany = async () => {
             try {
-                const res = await axios.get("http://localhost:5000/api/credentials/users");
-                if (res.data && res.data.length > 0) {
-                    setCashierInfo(res.data[0]); // Use the first user
+                const res = await axios.get('http://localhost:5000/api/companies');
+                if (res.data?.length > 0) {
+                    setCompany(res.data[0]);
                 }
             } catch (error) {
-                console.error("Failed to fetch cashier info:", error);
+                console.error('Error fetching company info:', error);
+                setCompany(prev => ({ ...prev, businessName: 'Billing System' }));
             }
         };
 
-        fetchCashierInfo();
+        fetchCompany();
     }, []);
 
-    const handleLogout = () => {
-        console.log('User logged out');
-        navigate('/login');
-    };
-
     return (
-        <nav className="bg-[#248AFD] shadow-lg">
+        <nav className="bg-blue-600 shadow-lg">
             <div className="container mx-auto">
-                <div className="flex justify-between h-11 items-center py-5">
-                    
+                <div className="flex justify-center h-6 items-center ">
+
                     {/* Logo and System Name */}
                     <div className="flex items-center">
-                        <div className="flex-shrink-0">
-                            <img src={logo} alt="Logo" className="h-6 w-6" />
-                        </div>
-                        <span className="ml-3 text-white text-base font-semibold tracking-tight">
-                            Billing System
+                        {/* {company.logoUrl ? (
+                            <img
+                                src={`http://localhost:5000${company.logoUrl}`}
+                                alt="Company Logo"
+                                className="h-5 w-5 object-contain rounded-full"
+                            />
+                        ) : (
+                            <div className="h-5 w-5 bg-gray-700 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                                ATS
+                            </div>
+                        )} */}
+                        <span className="text-gray-100 text-sm font-semibold whitespace-nowrap uppercase">
+                            {company.businessName || 'Loading...'}
                         </span>
                     </div>
 
@@ -56,7 +59,7 @@ const Header = () => {
                         </div> */}
 
                         {/* Logout Button */}
-                        <button
+                        {/* <button
                             onClick={handleLogout}
                             className="flex items-center px-4 py-1 rounded-sm text-sm font-medium text-white bg-red-700 transition-colors duration-200 shadow-md"
                         >
@@ -64,7 +67,7 @@ const Header = () => {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                             </svg>
                             Logout
-                        </button>
+                        </button> */}
                     </div>
                 </div>
             </div>

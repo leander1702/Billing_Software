@@ -1,19 +1,46 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react'; // Import useRef and useCallback
 import { toast } from 'react-toastify';
 
-function CustomerDetails({ customer, onSubmit }) {
+function CustomerDetails({ customer, onSubmit, onFocusCustomerName, onFocusPhoneNumber }) { // Accept new ref props
   const [formData, setFormData] = useState({ name: '', contact: '' });
   const [isEditing, setIsEditing] = useState(true);
   const [foundInDB, setFoundInDB] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Create internal refs for the input fields
+  const contactInputRef = useRef(null);
+  const nameInputRef = useRef(null);
+
+  // Expose internal focus functions via the props received from BillingSystem
+  const focusCustomerName = useCallback(() => {
+    nameInputRef.current?.focus();
+  }, []);
+
+  const focusPhoneNumber = useCallback(() => {
+    contactInputRef.current?.focus();
+  }, []);
+
   useEffect(() => {
-    if (customer) {
+    if (onFocusCustomerName) onFocusCustomerName.current = focusCustomerName;
+    if (onFocusPhoneNumber) onFocusPhoneNumber.current = focusPhoneNumber;
+  }, [onFocusCustomerName, onFocusPhoneNumber, focusCustomerName, focusPhoneNumber]);
+
+
+  useEffect(() => {
+    if (!customer?.contact && !customer?.name) {
+      // If both contact and name are empty, reset form
+      setFormData({ name: '', contact: '' });
+      setFoundInDB(false);
+      setIsEditing(true);
+    } else {
       setFormData(customer);
       setFoundInDB(!!customer?.id);
       setIsEditing(!customer?.id);
     }
   }, [customer]);
+
+
+
 
   const handleContactChange = async (e) => {
     const contact = e.target.value.replace(/\D/g, '').slice(0, 10);
@@ -123,6 +150,7 @@ function CustomerDetails({ customer, onSubmit }) {
               maxLength="10"
               required
               disabled={isLoading}
+              ref={contactInputRef} // Attach ref here
             />
             {isLoading && (
               <div className="absolute inset-y-0 right-2 flex items-center">
@@ -145,6 +173,7 @@ function CustomerDetails({ customer, onSubmit }) {
             className="w-full py-1 px-2 text-sm border border-gray-300 rounded-sm focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
             placeholder="Enter customer name"
             required
+            ref={nameInputRef} // Attach ref here
           />
         </div>
 
@@ -152,9 +181,8 @@ function CustomerDetails({ customer, onSubmit }) {
         <button
           type="submit"
           disabled={isLoading}
-          className={`w-full py-1.5 px-3 text-sm font-medium text-white rounded-sm shadow-sm ${
-            isLoading ? 'bg-blue-400' : 'bg-blue-600 hover:bg-blue-700'
-          } focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-500`}
+          className={`w-full py-1.5 px-3 text-sm font-medium text-white rounded-sm shadow-sm ${isLoading ? 'bg-blue-400' : 'bg-blue-600 hover:bg-blue-700'
+            } focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-500`}
         >
           {isLoading ? (
             'Processing...'

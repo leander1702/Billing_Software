@@ -50,7 +50,7 @@ const CashierDetails = () => {
     <div className="bg-white p-4 border border-gray-200  shadow-sm relative">
       {/* Counter number badge */}
       {cashier?.counterNum && (
-        <div className="absolute top-0 right-0 bg-blue-600 text-white px-2 py-0.5 text-xs font-bold rounded-bl-md shadow">
+        <div className="absolute top-0 right-0 bg-green-600 text-white px-2 py-0.5 text-xs font-bold rounded-bl-md shadow">
           Counter No: {cashier.counterNum}
         </div>
       )}

@@ -1,114 +1,236 @@
-import { useState, useEffect } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-// Assuming logo is still imported if needed for a fallback or specific use,
-// but company.logoUrl is preferred for dynamic display.
-// import logo from '../assets/ATS LOGO WHITE (1).svg'; 
+import {
+  Home, BarChart2, Search, Package, Plus, ShoppingCart, User, Phone, Pause, Printer, CreditCard, LogOut // Lucide React Icons
+} from 'lucide-react'; // Import icons for a professional look
 
-const Navbar = () => {
+// Accept new props for shortcut actions as refs
+const Navbar = ({
+  onFocusProductSearch,
+  onFocusProductCode,
+  onFocusQuantity,
+  onTriggerAddProduct,
+  onFocusCustomerName,
+  onFocusPhoneNumber,
+  onTriggerHold,
+  onTriggerPrint,
+  onTriggerPayment,
+}) => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Determine the active tab based on the current URL path
   const activeTab = location.pathname === '/' ? 'home' : location.pathname.slice(1).toLowerCase();
-  
-  // State to hold company information (name and logo URL)
+
   const [company, setCompany] = useState({ name: '', logoUrl: '' });
 
-  // Fetch company details from the backend on component mount
   useEffect(() => {
     const fetchCompany = async () => {
       try {
         const res = await axios.get('http://localhost:5000/api/companies');
-        // If company data exists, set the state with the first company found
         if (res.data?.length > 0) {
           setCompany(res.data[0]);
         }
       } catch (error) {
         console.error('Error fetching company info:', error);
-        // Optionally, set a default company name if fetching fails
-        setCompany(prev => ({ ...prev, businessName: 'Billing System' }));
+        setCompany(prev => ({ ...prev, name: 'Billing System' }));
       }
     };
-
     fetchCompany();
-  }, []); // Empty dependency array ensures this runs only once on mount
+  }, []);
 
-  // Handle user logout
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     console.log('User logged out');
-    // Navigate to the login page upon logout
     navigate('/login');
-  };
+  }, [navigate]);
+
+  // --- Shortcut Action Handlers (for both clicks and keyboard) ---
+  const handleShortcutAction = useCallback((action) => {
+    console.log(`Shortcut Action: ${action}`);
+
+    // Only allow product/customer/bill actions if on the billing system page ('/')
+    const isOnBillingPage = location.pathname === '/';
+
+    switch (action) {
+      case 'invoice':
+        navigate('/');
+        break;
+      case 'reports':
+        navigate('/reports');
+        break;
+      case 'searchProduct':
+        if (isOnBillingPage && onFocusProductSearch.current) {
+          onFocusProductSearch.current();
+        } else if (!isOnBillingPage) {
+          console.warn('Shortcut F1 (Search Product) only works on Invoice page.');
+          // Optionally, show a toast message to the user
+          // toast.info('Please navigate to the Invoice page (Ctrl+1) to use this shortcut.');
+        }
+        break;
+      case 'productCode':
+        if (isOnBillingPage && onFocusProductCode.current) {
+          onFocusProductCode.current();
+        } else if (!isOnBillingPage) {
+          console.warn('Shortcut F2 (Product Code) only works on Invoice page.');
+        }
+        break;
+      case 'quantity':
+        if (isOnBillingPage && onFocusQuantity.current) {
+          onFocusQuantity.current();
+        } else if (!isOnBillingPage) {
+          console.warn('Shortcut F3 (Quantity) only works on Invoice page.');
+        }
+        break;
+      case 'addProduct':
+        if (isOnBillingPage && onTriggerAddProduct.current) {
+          onTriggerAddProduct.current();
+        } else if (!isOnBillingPage) {
+          console.warn('Shortcut F4 (Add Product) only works on Invoice page.');
+        }
+        break;
+      case 'customerName':
+        if (isOnBillingPage && onFocusCustomerName.current) {
+          onFocusCustomerName.current();
+        } else if (!isOnBillingPage) {
+          console.warn('Shortcut F5 (Customer Name) only works on Invoice page.');
+        }
+        break;
+      case 'phoneNumber':
+        if (isOnBillingPage && onFocusPhoneNumber.current) {
+          onFocusPhoneNumber.current();
+        } else if (!isOnBillingPage) {
+          console.warn('Shortcut F6 (Phone Number) only works on Invoice page.');
+        }
+        break;
+      case 'hold':
+        if (isOnBillingPage && onTriggerHold.current) {
+          onTriggerHold.current();
+        } else if (!isOnBillingPage) {
+          console.warn('Shortcut F7 (Hold) only works on Invoice page.');
+        }
+        break;
+      case 'print':
+        if (isOnBillingPage && onTriggerPrint.current) {
+          onTriggerPrint.current();
+        } else if (!isOnBillingPage) {
+          console.warn('Shortcut F8 (Print) only works on Invoice page.');
+        }
+        break;
+      case 'payment':
+        if (isOnBillingPage && onTriggerPayment.current) {
+          onTriggerPayment.current();
+        } else if (!isOnBillingPage) {
+          console.warn('Shortcut F9 (Payment) only works on Invoice page.');
+        }
+        break;
+      case 'logout':
+        handleLogout();
+        break;
+      default:
+        break;
+    }
+  }, [
+    location.pathname, navigate, handleLogout,
+    onFocusProductSearch, onFocusProductCode, onFocusQuantity,
+    onTriggerAddProduct, onFocusCustomerName, onFocusPhoneNumber,
+    onTriggerHold, onTriggerPrint, onTriggerPayment
+  ]);
+
+  const handleKeyDown = useCallback((event) => {
+    if (event.ctrlKey) {
+      switch (event.key) {
+        case 'l':
+          event.preventDefault();
+          handleShortcutAction('logout');
+          break;
+        case 'r':
+          event.preventDefault();
+          handleShortcutAction('reports');
+          break;
+        case '1': // Ctrl+1 for Invoice
+          event.preventDefault();
+          handleShortcutAction('invoice');
+          break;
+        default:
+          break;
+      }
+    } else if (event.key.startsWith('F')) {
+      switch (event.key) {
+        case 'F1': event.preventDefault(); handleShortcutAction('searchProduct'); break;
+        case 'F2': event.preventDefault(); handleShortcutAction('productCode'); break;
+        case 'F3': event.preventDefault(); handleShortcutAction('quantity'); break;
+        case 'F4': event.preventDefault(); handleShortcutAction('addProduct'); break;
+        case 'F5': event.preventDefault(); handleShortcutAction('customerName'); break;
+        case 'F6': event.preventDefault(); handleShortcutAction('phoneNumber'); break;
+        case 'F7': event.preventDefault(); handleShortcutAction('hold'); break;
+        case 'F8': event.preventDefault(); handleShortcutAction('print'); break;
+        case 'F9': event.preventDefault(); handleShortcutAction('payment'); break;
+        default: break;
+      }
+    }
+  }, [handleShortcutAction]);
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [handleKeyDown]);
+
+  const shortcutButtons = [
+    { label: 'Invoice', shortcut: 'Ctrl+1', action: 'invoice', path: '/', icon: Home },
+    { label: 'Reports', shortcut: 'Ctrl+R', action: 'reports', path: '/reports', icon: BarChart2 },
+    { label: 'Search', shortcut: 'F1', action: 'searchProduct', icon: Search },
+    { label: 'Code', shortcut: 'F2', action: 'productCode', icon: Package },
+    { label: 'Quantity', shortcut: 'F3', action: 'quantity', icon: Plus },
+    { label: 'Add', shortcut: 'F4', action: 'addProduct', icon: ShoppingCart },
+    { label: 'Name', shortcut: 'F5', action: 'customerName', icon: User },
+    { label: 'Phone', shortcut: 'F6', action: 'phoneNumber', icon: Phone },
+    { label: 'Hold', shortcut: 'F7', action: 'hold', icon: Pause },
+    { label: 'Print', shortcut: 'F8', action: 'print', icon: Printer },
+    { label: 'Payment', shortcut: 'F9', action: 'payment', icon: CreditCard },
+    { label: 'Logout', shortcut: 'Ctrl+L', action: 'logout', icon: LogOut },
+  ];
 
   return (
-    // Main navigation bar container with a dark, sleek background and subtle shadow
-    <nav className="bg-gray-900 shadow-sm">
-      <div className="max-w-7xl mx-auto"> {/* Added horizontal padding */}
-        <div className="flex items-center justify-between h-14"> {/* Increased height slightly for better spacing */}
-          {/* Left Section: Company Logo & Name */}
-          <div className="flex items-center space-x-3">
-            {company.logoUrl ? (
-              // Display company logo if available
-              <img
-                src={`http://localhost:5000${company.logoUrl}`}
-                alt="Company Logo"
-                className="h-8 w-8 object-contain rounded-full" // Adjusted size for a cleaner look
-              />
-            ) : (
-              // Fallback for logo if not loaded or available
-              <div className="h-8 w-8 bg-gray-700 rounded-full flex items-center justify-center text-white text-xs font-bold">
-                ATS
-              </div>
+    <nav className="bg-gray-800 z-50 fixed bottom-0 left-0 right-0">
+      <div className="max-w-7xl mx-auto px-4">
+        <div className="flex items-center justify-between h-16">
+          {/* Company Logo and Name */}
+          {/* <div className="flex items-center">
+            {company.logoUrl && (
+              <img className="h-8 w-8 mr-2 rounded-full object-cover" src={company.logoUrl} alt={`${company.name} Logo`} />
             )}
-            {/* Company Business Name */}
-            <span className="text-gray-100 text-lg font-semibold whitespace-nowrap">
-              {company.businessName || 'Loading...'}
+            <span className="text-white text-xl font-bold tracking-wide">
+              {company.name || 'Billing System'}
             </span>
-          </div>
+          </div> */}
 
-          {/* Center Section: Navigation Links */}
+          {/* All Shortcut Buttons */}
           <div className="flex-1 flex justify-center">
-            <div className="flex space-x-1"> {/* Reduced space between links */}
-              {[
-                { path: '/', label: 'Invoice', key: 'home' },
-                { path: '/sales', label: 'Sales', key: 'sales' },
-                { path: '/transactions', label: 'Transactions', key: 'transactions' },
-                { path: '/reports', label: 'Reports', key: 'reports' }
-              ].map(({ path, label, key }) => (
-                <Link
-                  key={key}
-                  to={path}
+            <div className="grid grid-cols-12 gap-x-16 gap-y-2"> {/* Adjusted gap for better spacing */}
+              {shortcutButtons.map((item) => (
+                <button
+                  key={item.action}
+                  onClick={() => handleShortcutAction(item.action)}
                   className={`
-                    px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200
-                    ${activeTab === key
-                      ? 'bg-blue-600 text-white shadow-md' // Professional active state with a subtle indigo
-                      : 'text-gray-300 hover:bg-gray-700 hover:text-white' // Subtle hover for inactive links
-                    }
+                    px-4 py-2 text-sm font-medium 
+                    flex flex-col items-center justify-center text-center group
+                    border border-transparent
+                    ${(item.action === 'invoice' && activeTab === 'home') || (item.action === 'reports' && activeTab === 'reports')
+                      ? ' text-white '
+                      : 'text-gray-300  hover:text-white'
+                    }                    
                   `}
                 >
-                  {label}
-                </Link>
+                  <div className="flex items-center space-x-1"> {/* Container for icon and label */}
+
+                    <span className='text-sm'>{item.label}</span>
+                  </div>
+                  <span className="text-xs mt-0.5 opacity-75 group-hover:opacity-100">{item.shortcut}</span> {/* Shortcut always visible, slightly more prominent on hover */}
+                </button>
               ))}
             </div>
-          </div>
-
-          {/* Right Section: Logout Button */}
-          <div className="flex items-center">
-            <button
-              onClick={handleLogout}
-              className="flex items-center px-3 py-1.5 text-sm font-medium text-white bg-red-600 rounded-md shadow-sm hover:bg-red-700 transition-colors" // Adjusted padding and shadow
-            >
-              <svg className="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"> {/* Adjusted icon size and margin */}
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-                />
-              </svg>
-              Logout
-            </button>
           </div>
         </div>
       </div>
