@@ -24,22 +24,31 @@ const Sales = () => {
     });
 
     useEffect(() => {
+        // console.log("Fetching bills..."); // Debugging: Confirm useEffect runs
         fetch('http://localhost:5000/api/bills')
-            .then(res => res.json())
+            .then(res => {
+                if (!res.ok) {
+                    throw new Error(`HTTP error! status: ${res.status}`);
+                }
+                return res.json();
+            })
             .then(data => {
+                // console.log("Bills fetched:", data); // Debugging: See fetched data
                 setBills(data);
                 setIsLoading(false);
                 calculateSalesData(data);
-                calculateTotalTransactionAmounts(data); // Calculate new totals here
+                calculateTotalTransactionAmounts(data);
             })
             .catch(err => {
                 console.error('Error fetching bills:', err);
                 setIsLoading(false);
+                // Optionally set bills to an empty array or display an error message in UI
+                setBills([]);
             });
     }, []);
 
     useEffect(() => {
-        // This useEffect ensures filteredBills updates whenever bills or selectedCustomerPeriod changes
+        // console.log("Customer period or bills changed. Filtering bills..."); // Debugging filter effect
         filterBillsByCustomerPeriod(selectedCustomerPeriod, bills);
     }, [selectedCustomerPeriod, bills]);
 
@@ -50,7 +59,6 @@ const Sales = () => {
         setTotalCustomersBilled(uniqueCustomerIds.size);
 
         const today = new Date();
-        // Set to start of day for accurate comparison
         today.setHours(0, 0, 0, 0);
 
         const startOfWeek = new Date(today);
@@ -195,22 +203,21 @@ const Sales = () => {
     };
 
     const openProductDetails = (bill) => {
+        // console.log("Attempting to open modal for bill:", bill); // Debugging: confirm function call
         setSelectedBill(bill);
         setIsModalOpen(true);
+        // console.log("Modal open state set to:", true); // Debugging: confirm state update
     };
 
     const closeModal = () => {
+        // console.log("Closing modal."); // Debugging: confirm close
         setIsModalOpen(false);
         setSelectedBill(null);
     };
 
     return (
-        <div className="p-6 bg-gray-50 min-h-screen font-inter">
-            <div className="max-w-6xl mx-auto">
-                <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-3xl font-bold text-gray-900">Sales Overview</h2>
-                </div>
-
+        <div className="bg-gray-50 min-h-screen font-inter "> 
+            <div className="max-w-7xl mx-auto">             
                 {isLoading ? (
                     <div className="flex justify-center items-center h-48">
                         <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-blue-500"></div>
@@ -219,56 +226,37 @@ const Sales = () => {
                 ) : (
                     <>
                         {/* Sales Summary Cards */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-                            {/* Total Bills Card */}
-                            <div className="bg-white rounded-lg shadow-sm p-5 border border-blue-100 flex flex-col justify-between">
-                                <div>
-                                    <div className="text-sm font-medium text-blue-600">Total Bills</div>
-                                    <div className="text-3xl font-bold text-gray-900 mt-1">{bills.length}</div>
-                                </div>
-                                <p className="text-gray-500 text-xs mt-2">All time records</p>
-                            </div>
-
-                            {/* Unique Customers Billed Card */}
+                        <div className="grid grid-cols-1 gap-6 mb-8">                          
+                           {/* Most Sold Product Card */}
                             <div className="bg-white rounded-lg shadow-sm p-5 border border-green-100 flex flex-col justify-between">
-                                <div>
-                                    <div className="text-sm font-medium text-green-600">Unique Customers</div>
-                                    <div className="text-3xl font-bold text-gray-900 mt-1">{totalCustomersBilled}</div>
+                                <div className="flex justify-between items-center mb-4">
+                                    <h3 className="text-base font-semibold text-red-700">Most Sold Product</h3>
+                                    <select
+                                        value={selectedProductPeriod}
+                                        onChange={(e) => setSelectedProductPeriod(e.target.value)}
+                                        className="block w-auto px-3 py-1 text-sm border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 rounded-md shadow-sm"
+                                    >
+                                        <option value="day">Today</option>
+                                        <option value="week">This Week</option>
+                                        <option value="month">This Month</option>
+                                        <option value="year">This Year</option>
+                                    </select>
                                 </div>
-                                <p className="text-gray-500 text-xs mt-2">Total distinct customers</p>
-                            </div>
-
-                            {/* Total Revenue (All Time) Card */}
-                          <div className="bg-white rounded-lg shadow-sm p-5 border border-green-100 flex flex-col justify-between">
-                            <div className="flex justify-between items-center mb-4">
-                                <h3 className="text-lg font-semibold text-red-700">Most Sold Product</h3>
-                                <select
-                                    value={selectedProductPeriod}
-                                    onChange={(e) => setSelectedProductPeriod(e.target.value)}
-                                    className="block w-auto px-3 py-1 text-sm border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 rounded-md shadow-sm"
-                                >
-                                    <option value="day">Today</option>
-                                    <option value="week">This Week</option>
-                                    <option value="month">This Month</option>
-                                    <option value="year">This Year</option>
-                                </select>
-                            </div>
-                            <div className="flex items-center space-x-2 mt-3">
-                                {mostSoldProductData[selectedProductPeriod] ? (
-                                    <>
-                                        <span className="text-3xl font-bold text-gray-900">{mostSoldProductData[selectedProductPeriod].name}</span>
-                                        <span className="text-base text-gray-600">({mostSoldProductData[selectedProductPeriod].quantity} units)</span>
-                                    </>
-                                ) : (
-                                    <p className="text-gray-500 text-sm">No sales data for this period.</p>
-                                )}
+                                <div className="flex items-center space-x-2 ">
+                                    {mostSoldProductData[selectedProductPeriod] ? (
+                                        <>
+                                            <span className="text-lg font-bold text-gray-900">{mostSoldProductData[selectedProductPeriod].name}</span>
+                                            <span className="text-base text-gray-600">({mostSoldProductData[selectedProductPeriod].quantity} units)</span>
+                                        </>
+                                    ) : (
+                                        <p className="text-gray-500 text-sm">No sales data for this period.</p>
+                                    )}
+                                </div>
                             </div>
                         </div>
-                        </div>                   
-
                         {/* Customer Bills Table */}
                         <div className="flex justify-between items-center mb-5">
-                            <h3 className="text-xl font-semibold text-gray-800">Recent Customer Bills</h3>
+                            <h3 className="text-lg font-semibold text-black">Recent Customer Bills</h3>
                             <div className="flex items-center space-x-2">
                                 <span className="text-sm text-gray-500">Filter by:</span>
                                 <select
@@ -373,8 +361,8 @@ const Sales = () => {
 
                 {/* Product Details Modal */}
                 {isModalOpen && selectedBill && (
-                    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50 animate-fade-in">
-                        <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto transform scale-95 opacity-0 animate-scale-in">
+                    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50"> {/* Removed animation classes temporarily */}
+                        <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"> {/* Removed animation classes temporarily */}
                             <div className="p-6">
                                 <div className="flex justify-between items-start mb-5">
                                     <div>

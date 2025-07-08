@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import Sales from './Sales';
 import { Bar, Line, Pie } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -41,12 +42,16 @@ const Reports = () => {
   const [averageOrderValue, setAverageOrderValue] = useState(0);
   const [uniqueCustomers, setUniqueCustomers] = useState(0);
 
+  const [salesChartData, setSalesChartData] = useState({ labels: [], datasets: [] });
+  const [transactionChartData, setTransactionChartData] = useState({ labels: [], datasets: [] });
+
   useEffect(() => {
     fetch('http://localhost:5000/api/bills')
       .then((res) => res.json())
       .then((data) => {
         setBills(data);
         calculateMetrics(data);
+        processChartData(data);
         setIsLoading(false);
       })
       .catch((err) => {
@@ -64,32 +69,110 @@ const Reports = () => {
     setUniqueCustomers(unique.size);
   };
 
-  const salesData = {
-    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'],
-    datasets: [
-      {
-        label: 'Sales',
-        data: [12000, 19000, 15000, 21000, 18000, 24000, 28000],
-        backgroundColor: 'rgba(99, 102, 241, 0.6)',
-        borderColor: 'rgba(99, 102, 241, 1)',
-        borderWidth: 2,
-        borderRadius: 4,
-      },
-    ],
-  };
+  const processChartData = (billsData) => {
+    // --- Sales Overview (Bar Chart) Data Processing for Last 12 Months ---
+    const salesByMonthMap = new Map(); // Use a Map to maintain insertion order for months
 
-  const transactionData = {
-    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-    datasets: [
-      {
-        label: 'Transactions',
-        data: [12, 19, 15, 21, 18, 24, 28],
-        backgroundColor: 'rgba(16, 185, 129, 0.6)',
-        borderColor: 'rgba(16, 185, 129, 1)',
-        borderWidth: 2,
-        tension: 0.3,
-      },
-    ],
+    // Calculate dates for the last 12 months, including the current month
+    const today = new Date();
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const labels = [];
+    const salesValues = [];
+
+    // Initialize sales for the last 12 months to 0
+    for (let i = 0; i < 12; i++) {
+      const date = new Date(today.getFullYear(), today.getMonth() - 11 + i, 1);
+      const monthYearKey = `${monthNames[date.getMonth()]} ${date.getFullYear()}`;
+      labels.push(monthYearKey);
+      salesByMonthMap.set(monthYearKey, 0);
+    }
+
+    // Populate sales data from bills, only for the last 12 months
+    billsData.forEach(bill => {
+      const billDate = new Date(bill.date);
+      // Ensure bill date is within the last 12 months (inclusive of current month)
+      const twelveMonthsAgo = new Date(today.getFullYear(), today.getMonth() - 11, 1);
+      if (billDate >= twelveMonthsAgo && billDate <= today) {
+        const monthYearKey = `${monthNames[billDate.getMonth()]} ${billDate.getFullYear()}`;
+        if (salesByMonthMap.has(monthYearKey)) { // Only add if it's one of the 12 months we're tracking
+          salesByMonthMap.set(monthYearKey, salesByMonthMap.get(monthYearKey) + (bill.total || 0));
+        }
+      }
+    });
+
+    // Extract values in the order of labels
+    labels.forEach(label => salesValues.push(salesByMonthMap.get(label)));
+
+    // Find highest and lowest sales, excluding months with 0 sales for comparison
+    const nonZeroSales = salesValues.filter(value => value > 0);
+    const maxSale = nonZeroSales.length > 0 ? Math.max(...nonZeroSales) : 0;
+    const minSale = nonZeroSales.length > 0 ? Math.min(...nonZeroSales) : 0;
+
+    const backgroundColors = salesValues.map(value => {
+      if (value === maxSale && maxSale > 0) {
+        return 'rgba(46, 204, 113, 0.9)'; // Green for highest
+      } else if (value === minSale && minSale > 0) {
+        return 'rgba(231, 76, 60, 0.9)'; // Red for lowest
+      } else {
+        return 'rgba(52, 152, 219, 0.6)'; // Blue for medium
+      }
+    });
+
+    const borderColors = salesValues.map(value => {
+      if (value === maxSale && maxSale > 0) {
+        return 'rgba(39, 174, 96, 1)'; // Green border
+      } else if (value === minSale && minSale > 0) {
+        return 'rgba(192, 57, 43, 1)'; // Red border
+      } else {
+        return 'rgba(41, 128, 185, 1)'; // Blue border
+      }
+    });
+
+
+    setSalesChartData({
+      labels: labels,
+      datasets: [
+        {
+          label: 'Sales (₹)',
+          data: salesValues,
+          backgroundColor: backgroundColors,
+          borderColor: borderColors,
+          borderWidth: 2,
+          borderRadius: 4,
+        },
+      ],
+    });
+
+    // --- Transaction Overview (Line Chart) Data Processing ---
+    const transactionsByDay = {
+      'Sunday': 0, 'Monday': 0, 'Tuesday': 0, 'Wednesday': 0,
+      'Thursday': 0, 'Friday': 0, 'Saturday': 0
+    };
+
+    billsData.forEach(bill => {
+      const billDate = new Date(bill.date);
+      const dayOfWeek = billDate.toLocaleString('en-US', { weekday: 'long' });
+      if (transactionsByDay.hasOwnProperty(dayOfWeek)) {
+        transactionsByDay[dayOfWeek]++;
+      }
+    });
+
+    const orderedDays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+    setTransactionChartData({
+      labels: orderedDays,
+      datasets: [
+        {
+          label: 'Transactions',
+          data: orderedDays.map(day => transactionsByDay[day]),
+          backgroundColor: 'rgba(16, 185, 129, 0.6)',
+          borderColor: 'rgba(16, 185, 129, 1)',
+          borderWidth: 2,
+          tension: 0.3,
+          fill: false,
+        },
+      ],
+    });
   };
 
   const productDistributionData = {
@@ -115,10 +198,10 @@ const Reports = () => {
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Sales Analytics Report</h1>
-            <p className="text-gray-600 mt-1">Comprehensive overview of your business performance</p>
+            <h1 className="text-lg font-semibold text-gray-800">Sales Analytics Report</h1>
+            <p className="text-gray-600 text-sm">Comprehensive overview of your business performance</p>
           </div>
-          <div className="mt-4 md:mt-0 flex items-center space-x-3">
+          <div className="flex items-center space-x-3">
             <select
               value={timeRange}
               onChange={(e) => setTimeRange(e.target.value)}
@@ -144,7 +227,6 @@ const Reports = () => {
           <>
             {/* Key Metrics */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-              {/* Revenue */}
               <MetricCard
                 title="Total Revenue"
                 value={`₹${totalRevenue.toFixed(2)}`}
@@ -153,7 +235,6 @@ const Reports = () => {
                 iconBg="bg-blue-100"
               />
 
-              {/* Transactions */}
               <MetricCard
                 title="Total Transactions"
                 value={totalTransactions}
@@ -162,7 +243,6 @@ const Reports = () => {
                 iconBg="bg-green-100"
               />
 
-              {/* Avg Order */}
               <MetricCard
                 title="Avg. Order Value"
                 value={`₹${averageOrderValue.toFixed(2)}`}
@@ -171,7 +251,6 @@ const Reports = () => {
                 iconBg="bg-purple-100"
               />
 
-              {/* Customers */}
               <MetricCard
                 title="Unique Customers"
                 value={uniqueCustomers}
@@ -180,63 +259,21 @@ const Reports = () => {
                 iconBg="bg-orange-100"
               />
             </div>
-
+            <Sales />
             {/* Charts */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-              <ChartCard title="Sales Overview" subtitle="Last 7 months" icon={<FiCalendar />} chart={<Bar data={salesData} options={chartOptions} />} />
-              <ChartCard title="Transaction Overview" subtitle="Last 7 days" icon={<FiCalendar />} chart={<Line data={transactionData} options={chartOptions} />} />
-            </div>
-
-            {/* Pie + Recent */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200 lg:col-span-1">
-                <h2 className="text-lg font-semibold text-gray-800 mb-4">Product Distribution</h2>
-                <div className="h-64">
-                  <Pie
-                    data={productDistributionData}
-                    options={{
-                      responsive: true,
-                      maintainAspectRatio: false,
-                      plugins: {
-                        legend: {
-                          position: 'right',
-                        },
-                      },
-                    }}
-                  />
-                </div>
-              </div>
-
-              {/* Recent Activity */}
-              <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200 lg:col-span-2">
-                <h2 className="text-lg font-semibold text-gray-800 mb-4">Recent Activity</h2>
-                <div className="space-y-4">
-                  {bills.length === 0 && (
-                    <p className="text-center text-gray-500">No recent activity.</p>
-                  )}
-                  {bills.slice(0, 5).map((bill, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg transition-colors">
-                      <div className="flex items-center">
-                        <div className="bg-blue-100 p-2 rounded-lg mr-4">
-                          <FiShoppingCart className="text-blue-600" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">Order #{bill.id}</p>
-                          <p className="text-xs text-gray-500">
-                            {bill.date ? new Date(bill.date).toLocaleDateString() : 'N/A'} • {bill.products?.length || 0} items
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-sm font-medium">₹{(bill.total ?? 0).toFixed(2)}</div>
-                    </div>
-                  ))}
-                </div>
-                {bills.length > 5 && (
-                  <button className="mt-4 text-sm text-blue-600 hover:text-blue-800 font-medium">
-                    View all activity →
-                  </button>
-                )}
-              </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8 mb-8">
+              <ChartCard
+                title="Sales Overview"
+                subtitle="Last 12 Months Sales Trend (Highest/Lowest Highlighted)" // Updated subtitle
+                icon={<FiCalendar />}
+                chart={<Bar data={salesChartData} options={chartOptions} />}
+              />
+              <ChartCard
+                title="Transaction Overview"
+                subtitle="Transactions by Day of Week"
+                icon={<FiCalendar />}
+                chart={<Line data={transactionChartData} options={chartOptions} />}
+              />             
             </div>
           </>
         )}
@@ -245,7 +282,7 @@ const Reports = () => {
   );
 };
 
-// Reusable metric card
+// Reusable metric card (No changes needed)
 const MetricCard = ({ title, value, subtitle, icon, iconBg }) => (
   <div className="bg-white rounded-xl shadow-sm p-6 border">
     <div className="flex items-center justify-between">
@@ -261,7 +298,7 @@ const MetricCard = ({ title, value, subtitle, icon, iconBg }) => (
   </div>
 );
 
-// Reusable chart card
+// Reusable chart card (No changes needed)
 const ChartCard = ({ title, subtitle, icon, chart }) => (
   <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
     <div className="flex items-center justify-between mb-4">
@@ -275,12 +312,26 @@ const ChartCard = ({ title, subtitle, icon, chart }) => (
   </div>
 );
 
-// Common chart options
+// Common chart options (Tooltip callback updated for currency)
 const chartOptions = {
   responsive: true,
   maintainAspectRatio: false,
   plugins: {
     legend: { display: false },
+    tooltip: {
+      callbacks: {
+        label: function (context) {
+          let label = context.dataset.label || '';
+          if (label) {
+            label += ': ';
+          }
+          if (context.parsed.y !== null) {
+            label += new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(context.parsed.y);
+          }
+          return label;
+        }
+      }
+    }
   },
   scales: {
     y: {

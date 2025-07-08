@@ -24,16 +24,22 @@ const UserLogin = () => {
     }
 
     try {
-      const res = await axios.get("http://localhost:5000/api/credentials/admin");
+      // Change the API endpoint to '/users' for cashier login
+      const res = await axios.get("http://localhost:5000/api/credentials/users");
 
-      const adminData = res.data; // Single admin object
+      // Assuming the '/users' endpoint returns an array of user objects
+      const usersData = res.data; 
+      
+      // Find the user with matching credentials
+      const foundUser = usersData.find(
+        (user) => user.contactNumber === phoneNumber && user.password === password
+      );
 
-      if (
-        adminData.contactNumber === phoneNumber &&
-        adminData.password === password
-      ) {
-        console.log("Login success", adminData);
-        navigate("/");
+      if (foundUser) {
+        console.log("Login success", foundUser);
+        // You might want to store user data in local storage or context here
+        // For now, navigating to the home page
+        navigate("/"); 
       } else {
         setError("Invalid phone number or password");
       }
@@ -44,7 +50,6 @@ const UserLogin = () => {
       setIsLoading(false);
     }
   };
-
 
   return (
     <div className="h-screen w-screen flex items-center justify-center bg-gray-50 p-4 sm:p-6 lg:p-6 overflow-hidden">
@@ -64,7 +69,7 @@ const UserLogin = () => {
             {/* Heading */}
             <div className="mb-6 text-center lg:text-left">
               <h1 className="text-xl font-semibold text-gray-800 mb-1">Sign in to your counter</h1>
-              <p className="text-sm text-gray-500">Bill customer purchases at your countery.</p>
+              <p className="text-sm text-gray-500">Bill customer purchases at your counter.</p>
             </div>
 
             {/* Error message */}
@@ -152,7 +157,6 @@ const UserLogin = () => {
         </div>
 
         {/* Right side - Login Form */}
-
         <div className="hidden lg:flex flex-1 items-center justify-center bg-gradient-to-br from-blue-600 to-blue-700 p-12 relative">
           <div className="absolute top-0 left-0 w-full h-full opacity-10">
             <div className="absolute -top-16 -left-16 w-60 h-60 rounded-full bg-white opacity-5"></div>

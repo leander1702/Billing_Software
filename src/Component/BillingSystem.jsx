@@ -230,7 +230,7 @@ const BillingSystem = ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(completeBill),
       });
-
+console.log(completeBill)
       if (!res.ok) {
         const errorData = await res.json();
         console.error('❌ Backend responded with error:', errorData);
