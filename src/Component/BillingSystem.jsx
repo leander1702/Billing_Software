@@ -28,56 +28,78 @@ const BillingSystem = ({
   const [currentBill, setCurrentBill] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isCheckingCustomer, setIsCheckingCustomer] = useState(false);
-  const [heldBill, setHeldBill] = useState(null); // This holds the actual held bill data
-  const [isHeld, setIsHeld] = useState(false); // This indicates if the *current* bill displayed is the held one
+  const [heldBill, setHeldBill] = useState(null);
+  const [isHeld, setIsHeld] = useState(false);
 
   const handleHoldToggle = () => {
     if (heldBill && products.length === 0) {
-      // Scenario 1: There's a held bill, and the current workspace is empty.
-      // This means the user wants to UNHOLD the previous bill.
       setCustomer(heldBill.customer);
       setProducts(heldBill.products);
-      setHeldBill(null); // Clear the held bill after restoring
-      setIsHeld(true); // Now the current bill *is* the held bill
+      setHeldBill(null);
+      setIsHeld(true);
       toast.info('Held bill restored!');
     } else if (products.length > 0) {
-      // Scenario 2: There are products in the current workspace.
-      // This means the user wants to HOLD the current bill.
-      setHeldBill({ customer, products }); // Save the current bill
-      setCustomer({ id: '', name: '', contact: '' }); // Clear current workspace
-      setProducts([]); // Clear current workspace
-      setIsHeld(false); // The workspace is no longer showing the held bill (it's empty)
+      setHeldBill({ customer, products });
+      setCustomer({ id: '', name: '', contact: '' });
+      setProducts([]);
+      setIsHeld(false);
       toast.info('Bill held successfully! Starting a new bill.');
     } else {
-      // Scenario 3: No products in current workspace, and no held bill to unhold.
       toast.warn('Nothing to hold or unhold.');
     }
   };
 
+  const calculateProductPrice = (product) => {
+    // If price was manually entered, use that directly
+    if (product.isManualPrice) {
+      return product.price;
+    }
+    
+    // Otherwise use the normal calculation logic
+    if (product.selectedUnit === product.baseUnit) {
+      return product.basePrice * product.quantity;
+    } else if (product.selectedUnit === product.secondaryUnit) {
+      return product.secondaryPrice * product.quantity;
+    } else if (product.unitPrices && product.unitPrices[product.selectedUnit]) {
+      return product.unitPrices[product.selectedUnit] * product.quantity;
+    } else {
+      // Handle conversions
+      if (product.selectedUnit === 'gram' && product.baseUnit === 'kg') {
+        return (product.basePrice / 1000) * product.quantity;
+      } else if (product.selectedUnit === 'ml' && product.baseUnit === 'liter') {
+        return (product.basePrice / 1000) * product.quantity;
+      }
+      return product.mrp * product.quantity;
+    }
+  };
 
   const handlePrint = () => {
     if (products.length === 0) {
       toast.error('No products to print in the bill.');
       return;
     }
+    
     const billData = {
       customer,
-      products,
+      products: products.map(p => ({
+        ...p,
+        price: calculateProductPrice(p) // Ensure we use the calculated price
+      })),
       subtotal: products.reduce((sum, item) => {
-        const base = item.mrp * item.quantity;
-        const discount = base * (item.discount / 100);
-        return sum + (base - discount);
+        const price = calculateProductPrice(item);
+        const discount = price * (item.discount / 100);
+        return sum + (price - discount);
       }, 0),
       gst: products.reduce((sum, item) => {
-        const base = item.mrp * item.quantity;
-        const discount = base * (item.discount / 100);
-        const discounted = base - discount;
+        const price = calculateProductPrice(item);
+        const discount = price * (item.discount / 100);
+        const discounted = price - discount;
         return sum + (discounted * item.gst) / 100;
       }, 0),
       total: products.reduce((sum, item) => {
-        const base = item.mrp * item.quantity;
-        const discount = base * (item.discount / 100);
-        const discounted = base - discount;
+        const price = calculateProductPrice(item);
+        const discount = price * (item.discount / 100);
+        const discounted = price - discount;
         const gst = (discounted * item.gst) / 100;
         return sum + discounted + gst;
       }, 0),
@@ -148,8 +170,8 @@ const BillingSystem = ({
     setIsHeld(false); // Removing means it's no longer the pristine held bill
   };
 
-  const calculateSubtotal = () =>
-    products.reduce((total, product) => total + product.price, 0);
+const calculateSubtotal = () =>
+  products.reduce((total, product) => total + calculateProductPrice(product), 0);
 
   const calculateGst = () =>
     products.reduce(
@@ -230,7 +252,7 @@ const BillingSystem = ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(completeBill),
       });
-console.log(completeBill)
+      console.log(completeBill)
       if (!res.ok) {
         const errorData = await res.json();
         console.error('❌ Backend responded with error:', errorData);
@@ -269,7 +291,14 @@ console.log(completeBill)
           <div className="lg:w-3/4">
             <ProductList
               products={products}
-              onAdd={handleAddProduct}
+              onAdd={(product) => {
+                const productWithUnit = {
+                  ...product,
+                  selectedUnit: product.baseUnit, // Default to base unit
+                  price: calculateProductPrice({ ...product, selectedUnit: product.baseUnit, quantity: 1 })
+                };
+                handleAddProduct(productWithUnit);
+              }}
               onEdit={handleEditProduct}
               onRemove={handleRemoveProduct}
               onFocusProductSearch={onFocusProductSearch}
@@ -296,7 +325,7 @@ console.log(completeBill)
               onPrint={handlePrint}
               isHeld={isHeld}
               onHoldToggle={handleHoldToggle}
-              heldBillExists={!!heldBill} 
+              heldBillExists={!!heldBill}
               onTriggerHold={onTriggerHold}
               onTriggerPrint={onTriggerPrint}
               onTriggerPayment={onTriggerPayment}

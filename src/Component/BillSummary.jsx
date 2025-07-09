@@ -36,14 +36,14 @@ function BillSummary({
 
   const calculateSubtotal = () =>
     products.reduce((sum, item) => {
-      const base = item.mrp * item.quantity;
+      const base = item.mrp;
       const discount = base * (item.discount / 100);
       return sum + (base - discount);
     }, 0);
 
   const calculateGST = () =>
     products.reduce((sum, item) => {
-      const base = item.mrp * item.quantity;
+      const base = item.mrp;
       const discount = base * (item.discount / 100);
       const discounted = base - discount;
       return sum + (discounted * item.gst) / 100;
@@ -51,7 +51,7 @@ function BillSummary({
 
   const calculateTotal = () =>
     products.reduce((sum, item) => {
-      const base = item.mrp * item.quantity;
+      const base =  item.mrp;
       const discount = base * (item.discount / 100);
       const discounted = base - discount;
       const gst = (discounted * item.gst) / 100;
