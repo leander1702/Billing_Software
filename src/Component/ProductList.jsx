@@ -7,10 +7,10 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
     code: '',
     name: '',
     quantity: '',
-    mrp: 0.0,
+    mrp:0,
     gst: 0.0,
     discount: 0.0,
-    price: 0,
+    price: '',
     baseUnit: 'piece',
     selectedUnit: 'piece',
     conversionRate: 1,
@@ -84,7 +84,7 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
           gst: productData.gst || 0,
           discount: productData.discount || 0,
           quantity: '',
-          price: 0,
+          price: '',
           isManualPrice: false
         }));
 
@@ -99,7 +99,7 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
         gst: 0,
         discount: 0,
         quantity: '',
-        price: 0,
+        price: '',
         isManualPrice: false
       }));
       setAvailableUnits([]);
@@ -138,12 +138,15 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
             calculatedMrp = (productData.basePrice || productData.mrp || 0) * quantity;
           }
 
-          const calculatedPrice = calculatedMrp - (calculatedMrp * (product.discount / 100));
+          // Apply discount first
+          const discountedPrice = calculatedMrp - (calculatedMrp * (product.discount / 100));
+          // Then add GST
+          const priceWithGst = discountedPrice + (discountedPrice * (product.gst / 100));
 
           setProduct(prev => ({
             ...prev,
             mrp: calculatedMrp,
-            price: calculatedPrice
+            price: priceWithGst
           }));
         } catch (error) {
           console.error('Error calculating price:', error);
@@ -158,7 +161,7 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
         mrp: parseFloat(prev.price) || 0
       }));
     }
-  }, [product.code, product.selectedUnit, product.quantity, product.discount, product.isManualPrice, product.price]);
+  }, [product.code, product.selectedUnit, product.quantity, product.discount, product.gst, product.isManualPrice, product.price]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -239,7 +242,7 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
       item.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const calculateTotal = () => filteredProducts.reduce((sum, item) => sum + item.mrp, 0);
+  const calculateTotal = () => filteredProducts.reduce((sum, item) => sum + item.price, 0);
 
   const getUnitLabel = (unitValue) => {
     const unit = unitTypes.find(u => u.value === unitValue);
@@ -249,7 +252,7 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
   return (
     <div className="flex flex-col h-full">
       {/* Product Form */}
-      <div className="bg-white p-3 mb-2 border border-gray-200 rounded-lg">
+      <div className="bg-white p-3 mb-2 border border-gray-200 ">
         <form onSubmit={handleSubmit}>
           <div className="flex items-center justify-between space-x-4 mb-2">
             <div className="relative flex-1">
@@ -274,7 +277,7 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
             </button>
           </div>
 
-          <div className="grid grid-cols-6 gap-2">
+          <div className="grid grid-cols-7 gap-2">
             {/* Product Code */}
             <div className="col-span-1">
               <label className="block text-xs text-gray-700 mb-1">Code*</label>
@@ -323,7 +326,7 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
             <div className="col-span-1">
               <label className="block text-xs text-gray-700 mb-1">Qty*</label>
               <input
-                type="text"
+                type="number"
                 name="quantity"
                 value={product.quantity}
                 onChange={handleChange}
@@ -340,9 +343,21 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
               <input
                 type="number"
                 name="mrp"
-                value={product.mrp.toFixed(2)}
+                value={product.mrp}
                 readOnly
                 className="w-full px-2 py-1 text-sm border bg-gray-100 rounded"
+              />
+            </div>
+
+            {/* GST */}
+            <div className="col-span-1">
+              <label className="block text-xs text-gray-700 mb-1">GST %</label>
+              <input
+                type="number"
+                name="gst"
+                value={product.gst}
+                onChange={handleChange}
+                className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
               />
             </div>
 
@@ -352,7 +367,7 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
               <input
                 type="number"
                 name="price"
-                value={product.price.toFixed(2)}
+                value={product.price}
                 onChange={handleChange}
                 step="0.01"
                 min="0"
@@ -366,7 +381,7 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
       </div>
 
       {/* Products Table */}
-      <div className="flex-1 bg-white border border-gray-200 rounded-lg overflow-hidden">
+      <div className="flex-1 bg-white border border-gray-200  overflow-hidden">
         <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 250px)' }}>
           <table className="min-w-full border-collapse text-sm">
             <thead className="bg-gray-100 sticky top-0">
@@ -375,6 +390,7 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
                 <th className="px-3 py-2 text-left border-b">Code</th>
                 <th className="px-3 py-2 text-left border-b">Name</th>
                 <th className="px-3 py-2 text-left border-b">MRP</th>
+                <th className="px-3 py-2 text-left border-b">GST %</th>
                 <th className="px-3 py-2 text-left border-b">Qty</th>
                 <th className="px-3 py-2 text-left border-b">Unit</th>
                 <th className="px-3 py-2 text-left border-b">Price</th>
@@ -387,16 +403,15 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
                   <td className="px-3 py-2 border-b">{index + 1}</td>
                   <td className="px-3 py-2 border-b">{item.code}</td>
                   <td className="px-3 py-2 border-b">{item.name}</td>
-                  <td className="px-3 py-2 border-b">
-                    {item.price.toFixed(2)}
-                  </td>
+                  <td className="px-3 py-2 border-b">{item.mrp}</td>
+                  <td className="px-3 py-2 border-b">{item.gst}</td>
                   <td className="px-3 py-2 border-b">
                     {Number.isInteger(item.quantity) ? item.quantity : item.quantity}
                   </td>
-                   <td className="px-3 py-2 border-b">
+                  <td className="px-3 py-2 border-b">
                     {getUnitLabel(item.selectedUnit)}
                   </td>
-                   <td className="px-3 py-2 border-b">{item.mrp.toFixed(2)}</td>
+                  <td className="px-3 py-2 border-b">{item.price.toFixed(2)}</td>
                   <td className="px-3 py-2 border-b">
                     <button
                       onClick={() => handleEdit(index)}
