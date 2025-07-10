@@ -27,7 +27,7 @@ const Header = () => {
     }, []);
 
     return (
-        <nav className="bg-blue-600 shadow-lg ">
+        <nav className="bg-blue-600 shadow-lg  w-full">
             <div className="container mx-auto">
                 <div className="flex justify-center h-6 items-center ">
                     {/* Logo and System Name */}
