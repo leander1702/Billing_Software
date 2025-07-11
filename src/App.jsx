@@ -52,7 +52,7 @@ const App = () => {
         <Route path='/Reports' element={<Reports />} />
       </Routes>
       {/* Pass all refs to Navbar */}
-      {location.pathname !== '/login' && (
+      {/* {location.pathname !== '/login' && (
         <Navbar
           onFocusProductSearch={focusProductSearchRef}
           onFocusProductCode={focusProductCodeRef}
@@ -64,7 +64,7 @@ const App = () => {
           onTriggerPrint={triggerPrintRef}
           onTriggerPayment={triggerPaymentRef}
         />
-      )}
+      )} */}
     </>
   );
 };

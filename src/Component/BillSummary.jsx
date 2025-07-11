@@ -88,7 +88,7 @@ function BillSummary({
 
 
   return (
-    <div className="bg-white p-3 border border-gray-200 rounded-sm sticky top-4">
+    <div className="bg-white p-3 border border-gray-200 rounded-sm sticky ">
       <h2 className="text-sm font-semibold mb-2">Bill Summary</h2>
 
       <div className="space-y-2">
