@@ -265,7 +265,7 @@ console.log(completeBill)
   return (
     <div className="bg-gradient-to-br from-blue-50 to-blue-100 font-inter max-h-screen">
       <div className="mx-auto p-2 max-w-full">
-        <div className="flex flex-col lg:flex-row gap-2">
+        <div className="flex flex-col lg:flex-row gap-1">
           <div className="lg:w-3/4">
             <ProductList
               products={products}
@@ -278,7 +278,7 @@ console.log(completeBill)
               onTriggerAddProduct={onTriggerAddProduct}
             />
           </div>
-          <div className="lg:w-1/4 flex flex-col gap-3.5">
+          <div className="lg:w-1/4 flex flex-col gap-1">
             {/* <CashierDetails /> */}
             <CustomerDetails
               customer={customer}
