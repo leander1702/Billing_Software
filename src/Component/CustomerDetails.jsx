@@ -74,12 +74,7 @@ function CustomerDetails({ customer, onSubmit, onFocusCustomerName, onFocusPhone
               location: data.location || ''
             });
             setFoundInDB(true);
-            setIsEditing(false);
-            onSubmit({
-              ...data,
-              aadhaar: data.aadhaar || '',
-              location: data.location || ''
-            });
+            setIsEditing(true);        
           }
         } else if (res.status === 404) {
           setFormData(prev => ({ 
@@ -169,11 +164,7 @@ function CustomerDetails({ customer, onSubmit, onFocusCustomerName, onFocusPhone
         });
         setFoundInDB(true);
         setIsEditing(false);
-        onSubmit({
-          ...data,
-          aadhaar: data.aadhaar || '',
-          location: data.location || ''
-        });
+       
       } else if (res.status === 409) {
         toast.info('Customer already exists');
         setFormData({
@@ -183,12 +174,7 @@ function CustomerDetails({ customer, onSubmit, onFocusCustomerName, onFocusPhone
           location: data.customer.location || ''
         });
         setFoundInDB(true);
-        setIsEditing(false);
-        onSubmit({
-          ...data.customer,
-          aadhaar: data.customer.aadhaar || '',
-          location: data.customer.location || ''
-        });
+        setIsEditing(false);       
       } else {
         throw new Error(data.message || 'Failed to save customer');
       }
