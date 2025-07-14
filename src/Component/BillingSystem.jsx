@@ -64,18 +64,18 @@ const BillingSystem = ({
       customer,
       products,
       subtotal: products.reduce((sum, item) => {
-        const base = item.mrp * item.quantity;
+        const base = item.totalPrice * item.quantity;
         const discount = base * (item.discount / 100);
         return sum + (base - discount);
       }, 0),
       gst: products.reduce((sum, item) => {
-        const base = item.mrp * item.quantity;
+        const base = item.totalPrice * item.quantity;
         const discount = base * (item.discount / 100);
         const discounted = base - discount;
         return sum + (discounted * item.gst) / 100;
       }, 0),
       total: products.reduce((sum, item) => {
-        const base = item.mrp * item.quantity;
+        const base = item.totalPrice * item.quantity;
         const discount = base * (item.discount / 100);
         const discounted = base - discount;
         const gst = (discounted * item.gst) / 100;
@@ -149,15 +149,15 @@ const BillingSystem = ({
   };
 
   const calculateSubtotal = () =>
-    products.reduce((total, product) => total + product.price, 0);
+    products.reduce((total, product) => total + product.totalPrice, 0);
 
   const calculateGst = () =>
     products.reduce(
-      (total, product) => total + (product.price * (product.gst || 0)) / 100,
+      (total, product) => total + (product.totalPrice * (product.gst || 0)) / 100,
       0
     );
 
-  const calculateTotal = () => calculateSubtotal() + calculateGst();
+  const calculateTotal = () => calculateSubtotal();
 
   const handleNewCustomer = () => {
     setCustomer({

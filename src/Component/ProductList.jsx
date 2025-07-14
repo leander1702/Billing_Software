@@ -7,16 +7,17 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
     code: '',
     name: '',
     quantity: '',
-    mrp:0,
+    mrpPrice: 0,
     gst: 0.0,
     discount: 0.0,
-    price: '',
+    price: 0,
     baseUnit: 'piece',
     selectedUnit: 'piece',
     conversionRate: 1,
     basePrice: 0,
     secondaryPrice: 0,
-    isManualPrice: false
+    isManualPrice: false,
+    totalPrice: 0
   };
 
   const [product, setProduct] = useState(initialProduct);
@@ -45,7 +46,7 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
   const addProductButtonRef = useRef(null);
   const priceInputRef = useRef(null);
 
-  // Fetch stock data on component mount
+  // Fetch stock data
   useEffect(() => {
     const fetchStock = async () => {
       try {
@@ -71,19 +72,29 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
         if (productData.secondaryUnit) units.push(productData.secondaryUnit);
 
         setAvailableUnits(units);
+        
+        // Calculate price based on selected unit
+        let price = productData.totalPrice || 0;
+        if (product.selectedUnit === productData.baseUnit) {
+          price = productData.totalPrice || 0;
+        } else if (product.selectedUnit === productData.secondaryUnit) {
+          price = productData.totalPrice / productData.conversionRate;
+          price = Math.round(price * 100) / 100; // Round to 2 decimal places
+        }
+
         setProduct(prev => ({
           ...prev,
           name: productData.productName || '',
           baseUnit: productData.baseUnit || 'piece',
-          selectedUnit: productData.baseUnit || 'piece',
-          basePrice: productData.basePrice || productData.mrp || 0,
+          basePrice: productData.basePrice || productData.mrpPrice || 0,
           secondaryPrice: productData.secondaryPrice || 0,
           conversionRate: productData.conversionRate || 1,
-          mrp: productData.basePrice || productData.mrp || 0,
+          mrpPrice: productData.mrpPrice || 0,
           gst: productData.gst || 0,
           discount: productData.discount || 0,
+          price: price,
           quantity: '',
-          price: '',
+          totalPrice: 0,
           isManualPrice: false
         }));
 
@@ -94,11 +105,12 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
       setProduct(prev => ({
         ...prev,
         name: '',
-        mrp: 0,
+        mrpPrice: 0,
         gst: 0,
         discount: 0,
+        price: 0,
         quantity: '',
-        price: '',
+        totalPrice: 0,
         isManualPrice: false
       }));
       setAvailableUnits([]);
@@ -106,6 +118,7 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
       setIsLoading(false);
     }
   };
+
   // Auto-fetch product details when code changes
   useEffect(() => {
     if (product.code && !editingIndex) {
@@ -113,65 +126,47 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
     }
   }, [product.code, editingIndex]);
 
- // Calculate price when quantity/unit changes
+  // Handle unit change separately
   useEffect(() => {
-    if (product.code && product.selectedUnit && product.quantity && !product.isManualPrice) {
-      const calculatePrice = async () => {
-        try {
-          const res = await axios.get(`http://localhost:5000/api/products/code/${product.code}`);
-          const productData = res.data;
+    if (product.code && product.selectedUnit) {
+      fetchProductDetails(product.code);
+    }
+  }, [product.selectedUnit]);
 
-          let calculatedMrp = 0;
-          const quantity = parseFloat(product.quantity);
-
-          if (product.selectedUnit === productData.baseUnit) {
-            calculatedMrp = (productData.basePrice || productData.mrp || 0) * quantity;
-          } else if (product.selectedUnit === productData.secondaryUnit && productData.secondaryPrice) {
-            calculatedMrp = productData.secondaryPrice * quantity;
-          } else if (product.selectedUnit === 'gram' && productData.baseUnit === 'kg' && productData.basePrice) {
-            calculatedMrp = (productData.basePrice / 1000) * quantity;
-          } else if (product.selectedUnit === 'ml' && productData.baseUnit === 'liter' && productData.basePrice) {
-            calculatedMrp = (productData.basePrice / 1000) * quantity;
-          } else {
-            calculatedMrp = (productData.basePrice || productData.mrp || 0) * quantity;
-          }
-
-          // Apply discount first
-          const discountedPrice = calculatedMrp - (calculatedMrp * (product.discount / 100));
-          // Then add GST
-          const priceWithGst = discountedPrice + (discountedPrice * (product.gst / 100));
-
-          setProduct(prev => ({
-            ...prev,
-            mrp: calculatedMrp,
-            price: priceWithGst,
-            unit: product.selectedUnit // Make sure to set the unit
-          }));
-        } catch (error) {
-          console.error('Error calculating price:', error);
-        }
-      };
-
-      calculatePrice();
-    } else if (product.isManualPrice) {
+  // Calculate total when quantity or price changes
+  useEffect(() => {
+    if (product.quantity && product.price) {
+      const quantity = parseFloat(product.quantity) || 0;
+      const totalPrice = quantity * parseFloat(product.price);
+      
       setProduct(prev => ({
         ...prev,
-        mrp: parseFloat(prev.price) || 0,
-        unit: prev.selectedUnit // Make sure to set the unit
+        totalPrice: totalPrice
       }));
     }
-  }, [product.code, product.selectedUnit, product.quantity, product.discount, product.gst, product.isManualPrice, product.price]);
+  }, [product.quantity, product.price]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
 
     if (name === 'quantity') {
-      setProduct(prev => ({ ...prev, [name]: value }));
+      const quantity = parseFloat(value) || 0;
+      const totalPrice = quantity * parseFloat(product.price);
+      
+      setProduct(prev => ({ 
+        ...prev, 
+        [name]: value,
+        totalPrice: totalPrice
+      }));
     } else if (name === 'price') {
+      const priceValue = parseFloat(value) || 0;
+      const quantity = parseFloat(product.quantity) || 0;
+      const totalPrice = priceValue * quantity;
+      
       setProduct(prev => ({
         ...prev,
-        price: parseFloat(value) || 0,
-        mrp: parseFloat(value) || 0, // Set MRP to match manual price
+        price: priceValue,
+        totalPrice: totalPrice,
         isManualPrice: true
       }));
     } else {
@@ -184,12 +179,11 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
     setProduct(prev => ({ 
       ...prev, 
       selectedUnit, 
-      isManualPrice: false,
-      price: 0
+      isManualPrice: false
     }));
   };
 
- const handleSubmit = (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
 
     if (!product.code || !product.quantity) {
@@ -207,8 +201,9 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
       ...product,
       id: Date.now(),
       quantity: quantityValue,
-      price: product.price,
-      unit: product.selectedUnit, // Include the selected unit
+      price: parseFloat(product.price),
+      totalPrice: product.totalPrice,
+      unit: product.selectedUnit,
       isManualPrice: product.isManualPrice
     };
 
@@ -242,7 +237,7 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
       item.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const calculateTotal = () => filteredProducts.reduce((sum, item) => sum + item.price, 0);
+  const calculateTotal = () => filteredProducts.reduce((sum, item) => sum + (item.totalPrice || item.price * item.quantity), 0);
 
   const getUnitLabel = (unitValue) => {
     const unit = unitTypes.find(u => u.value === unitValue);
@@ -252,7 +247,7 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
   return (
     <div className="flex flex-col h-full">
       {/* Product Form */}
-      <div className="bg-white p-3 mb-2 border border-gray-200 ">
+      <div className="bg-white p-3 mb-2 border border-gray-200">
         <form onSubmit={handleSubmit}>
           <div className="flex items-center justify-between space-x-4 mb-2">
             <div className="relative flex-1">
@@ -277,7 +272,7 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
             </button>
           </div>
 
-          <div className="grid grid-cols-7 gap-2">
+          <div className="grid grid-cols-8 gap-2">
             {/* Product Code */}
             <div className="col-span-1">
               <label className="block text-xs text-gray-700 mb-1">Code*</label>
@@ -337,13 +332,13 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
               />
             </div>
 
-            {/* MRP */}
+            {/* MRP Price (from DB) */}
             <div className="col-span-1">
-              <label className="block text-xs text-gray-700 mb-1">Sales Price</label>
+              <label className="block text-xs text-gray-700 mb-1">MRP Price</label>
               <input
                 type="number"
-                name="mrp"
-                value={product.mrp}
+                name="mrpPrice"
+                value={product.mrpPrice}
                 readOnly
                 className="w-full px-2 py-1 text-sm border bg-gray-100 rounded"
               />
@@ -361,7 +356,7 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
               />
             </div>
 
-            {/* Price */}
+            {/* Sales Price */}
             <div className="col-span-1">
               <label className="block text-xs text-gray-700 mb-1">Sales Price*</label>
               <input
@@ -376,12 +371,24 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
                 required
               />
             </div>
+
+            {/* Total Price */}
+            <div className="col-span-1">
+              <label className="block text-xs text-gray-700 mb-1">Total Price</label>
+              <input
+                type="number"
+                name="totalPrice"
+                value={product.totalPrice.toFixed(2)}
+                readOnly
+                className="w-full px-2 py-1 text-sm border bg-gray-100 rounded"
+              />
+            </div>
           </div>
         </form>
       </div>
 
       {/* Products Table */}
-      <div className="flex-1 bg-white border border-gray-200  overflow-hidden">
+      <div className="flex-1 bg-white border border-gray-200 overflow-hidden">
         <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 250px)' }}>
           <table className="min-w-full border-collapse text-sm">
             <thead className="bg-gray-100 sticky top-0">
@@ -393,7 +400,8 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
                 <th className="px-3 py-2 text-left border-b">GST %</th>
                 <th className="px-3 py-2 text-left border-b">Qty</th>
                 <th className="px-3 py-2 text-left border-b">Unit</th>
-                <th className="px-3 py-2 text-left border-b">Price</th>
+                <th className="px-3 py-2 text-left border-b">Sales Price</th>
+                <th className="px-3 py-2 text-left border-b">Total Price</th>
                 <th className="px-3 py-2 text-left border-b">Action</th>
               </tr>
             </thead>
@@ -403,7 +411,7 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
                   <td className="px-3 py-2 border-b">{index + 1}</td>
                   <td className="px-3 py-2 border-b">{item.code}</td>
                   <td className="px-3 py-2 border-b">{item.name}</td>
-                  <td className="px-3 py-2 border-b">{item.mrp}</td>
+                  <td className="px-3 py-2 border-b">{item.mrpPrice.toFixed(2)}</td>
                   <td className="px-3 py-2 border-b">{item.gst}</td>
                   <td className="px-3 py-2 border-b">
                     {Number.isInteger(item.quantity) ? item.quantity : item.quantity}
@@ -412,6 +420,7 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
                     {getUnitLabel(item.selectedUnit)}
                   </td>
                   <td className="px-3 py-2 border-b">{item.price.toFixed(2)}</td>
+                  <td className="px-3 py-2 border-b">{item.totalPrice.toFixed(2)}</td>
                   <td className="px-3 py-2 border-b">
                     <button
                       onClick={() => handleEdit(index)}
@@ -440,7 +449,7 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
                 {filteredProducts.length} items
               </span>
               <span className="text-lg font-semibold">
-                Total: ₹{calculateTotal().toFixed(2)}
+                Grand Total: ₹{calculateTotal().toFixed(2)}
               </span>
             </div>
           </div>
