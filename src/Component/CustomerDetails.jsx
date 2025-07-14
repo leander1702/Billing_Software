@@ -122,68 +122,59 @@ function CustomerDetails({ customer, onSubmit, onFocusCustomerName, onFocusPhone
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    const { name, contact, aadhaar, location } = formData;
+  e.preventDefault();
+  const { name, contact, aadhaar, location } = formData;
 
-    if (!name.trim()) {
-      toast.error('Please enter customer name');
-      return;
-    }
-    if (contact.length !== 10) {
-      toast.error('Please enter 10-digit contact number');
-      return;
-    }
+  if (!name.trim()) {
+    toast.error('Please enter customer name');
+    return;
+  }
+  if (contact.length !== 10) {
+    toast.error('Please enter 10-digit contact number');
+    return;
+  }
 
+  try {
+    setIsLoading(true);
+    
     if (foundInDB) {
       onSubmit(formData);
       return;
     }
 
-    setIsLoading(true);
-    try {
-      const res = await fetch('http://localhost:5000/api/customers', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          name, 
-          contact,
-          aadhaar: aadhaar.replace(/-/g, ''), // Remove dashes before saving
-          location 
-        })
-      });
+    const res = await fetch('http://localhost:5000/api/customers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        name, 
+        contact,
+        aadhaar: aadhaar.replace(/-/g, ''),
+        location 
+      })
+    });
 
-      const data = await res.json();
-
-      if (res.status === 201) {
-        toast.success('Customer saved successfully');
-        setFormData({
-          name: data.name || '',
-          contact: data.contact || '',
-          aadhaar: data.aadhaar || '',
-          location: data.location || ''
-        });
-        setFoundInDB(true);
-        setIsEditing(false);
-       
-      } else if (res.status === 409) {
-        toast.info('Customer already exists');
-        setFormData({
-          name: data.customer.name || '',
-          contact: data.customer.contact || '',
-          aadhaar: data.customer.aadhaar || '',
-          location: data.customer.location || ''
-        });
-        setFoundInDB(true);
-        setIsEditing(false);       
-      } else {
-        throw new Error(data.message || 'Failed to save customer');
-      }
-    } catch (err) {
-      toast.error(err.message);
-    } finally {
-      setIsLoading(false);
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.message || `HTTP error! status: ${res.status}`);
     }
-  };
+
+    const data = await res.json();
+    toast.success('Customer saved successfully');
+    setFormData({
+      name: data.name || '',
+      contact: data.contact || '',
+      aadhaar: data.aadhaar || '',
+      location: data.location || ''
+    });
+    setFoundInDB(true);
+    setIsEditing(false);
+    onSubmit(data); // Call the onSubmit prop with the new customer data
+  } catch (err) {
+    toast.error(err.message || 'Failed to save customer');
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   return (
     <div className="bg-white p-3 border border-gray-200 rounded-sm">
