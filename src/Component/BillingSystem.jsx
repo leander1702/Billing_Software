@@ -111,10 +111,13 @@ const BillingSystem = ({
         const newId = maxId + 1;
 
         setCustomer({
-          ...customerData,
-          id: newId.toString(),
+          id: customerData.id || customer.id || '', // use new or fallback to old
+          name: customerData.name,
+          contact: customerData.contact,
+          aadhaar: customerData.aadhaar || '',
+          location: customerData.location || ''
         });
-        toast.success(`New customer ID assigned: ${newId}`);
+        toast.success('Customer details updated!');
       }
     } catch (error) {
       console.error('Error checking customer:', error);
@@ -230,7 +233,7 @@ const BillingSystem = ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(completeBill),
       });
-console.log(completeBill)
+      console.log(completeBill)
       if (!res.ok) {
         const errorData = await res.json();
         console.error('❌ Backend responded with error:', errorData);
@@ -296,7 +299,7 @@ console.log(completeBill)
               onPrint={handlePrint}
               isHeld={isHeld}
               onHoldToggle={handleHoldToggle}
-              heldBillExists={!!heldBill} 
+              heldBillExists={!!heldBill}
               onTriggerHold={onTriggerHold}
               onTriggerPrint={onTriggerPrint}
               onTriggerPayment={onTriggerPayment}
