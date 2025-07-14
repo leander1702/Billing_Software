@@ -58,7 +58,6 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
     fetchStock();
   }, []);
 
-  // Fetch product details when code changes
   const fetchProductDetails = async (productCode) => {
     if (!productCode.trim()) return;
     setIsLoading(true);
@@ -107,7 +106,6 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
       setIsLoading(false);
     }
   };
-
   // Auto-fetch product details when code changes
   useEffect(() => {
     if (product.code && !editingIndex) {
@@ -115,7 +113,7 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
     }
   }, [product.code, editingIndex]);
 
-  // Calculate price when quantity/unit changes
+ // Calculate price when quantity/unit changes
   useEffect(() => {
     if (product.code && product.selectedUnit && product.quantity && !product.isManualPrice) {
       const calculatePrice = async () => {
@@ -146,7 +144,8 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
           setProduct(prev => ({
             ...prev,
             mrp: calculatedMrp,
-            price: priceWithGst
+            price: priceWithGst,
+            unit: product.selectedUnit // Make sure to set the unit
           }));
         } catch (error) {
           console.error('Error calculating price:', error);
@@ -155,10 +154,10 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
 
       calculatePrice();
     } else if (product.isManualPrice) {
-      // When price is manually entered, set MRP to match the manual price
       setProduct(prev => ({
         ...prev,
-        mrp: parseFloat(prev.price) || 0
+        mrp: parseFloat(prev.price) || 0,
+        unit: prev.selectedUnit // Make sure to set the unit
       }));
     }
   }, [product.code, product.selectedUnit, product.quantity, product.discount, product.gst, product.isManualPrice, product.price]);
@@ -190,7 +189,7 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
     }));
   };
 
-  const handleSubmit = (e) => {
+ const handleSubmit = (e) => {
     e.preventDefault();
 
     if (!product.code || !product.quantity) {
@@ -209,6 +208,7 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
       id: Date.now(),
       quantity: quantityValue,
       price: product.price,
+      unit: product.selectedUnit, // Include the selected unit
       isManualPrice: product.isManualPrice
     };
 
@@ -339,7 +339,7 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
 
             {/* MRP */}
             <div className="col-span-1">
-              <label className="block text-xs text-gray-700 mb-1">MRP</label>
+              <label className="block text-xs text-gray-700 mb-1">Sales Price</label>
               <input
                 type="number"
                 name="mrp"
@@ -363,7 +363,7 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
 
             {/* Price */}
             <div className="col-span-1">
-              <label className="block text-xs text-gray-700 mb-1">Price*</label>
+              <label className="block text-xs text-gray-700 mb-1">Sales Price*</label>
               <input
                 type="number"
                 name="price"
