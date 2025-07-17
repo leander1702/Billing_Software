@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
+import '../App.css';
 import { toast } from 'react-toastify';
+import { FiEdit2, FiTrash2, FiSearch, FiPlus, FiRefreshCw } from 'react-icons/fi';
 
 function ProductList({ products, onAdd, onEdit, onRemove }) {
   const initialProduct = {
@@ -9,15 +11,20 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
     quantity: '',
     mrpPrice: 0,
     gst: 0.0,
+    sgst: 0.0,
+    mrp: 0,
     discount: 0.0,
     price: 0,
     baseUnit: 'piece',
-    selectedUnit: 'piece',
+    selectedUnit: '',
     conversionRate: 1,
     basePrice: 0,
     secondaryPrice: 0,
     isManualPrice: false,
-    totalPrice: 0
+    totalPrice: 0,
+    gstAmount: 0,
+    sgstAmount: 0,
+    basicPrice: 0
   };
 
   const [product, setProduct] = useState(initialProduct);
@@ -72,27 +79,47 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
         if (productData.secondaryUnit) units.push(productData.secondaryUnit);
 
         setAvailableUnits(units);
-        
+
+        // Determine which unit to use (selected unit or fall back to baseUnit)
+        const selectedUnit = product.selectedUnit || productData.baseUnit;
+
         // Calculate price based on selected unit
-        let price = productData.totalPrice || 0;
-        if (product.selectedUnit === productData.baseUnit) {
-          price = productData.totalPrice || 0;
-        } else if (product.selectedUnit === productData.secondaryUnit) {
-          price = productData.totalPrice / productData.conversionRate;
-          price = Math.round(price * 100) / 100; // Round to 2 decimal places
+        let price = productData.mrp || 0;
+        if (selectedUnit === productData.baseUnit) {
+          price = productData.mrp || 0;
+        } else if (selectedUnit === productData.secondaryUnit) {
+          price = productData.mrp / productData.conversionRate;
+          price = Math.round(price * 10) / 10;
         }
+
+        // Calculate basic price (price excluding GST/SGST)
+        const gstPercentage = productData.gst || 0;
+        const sgstPercentage = productData.sgst || 0;
+        const totalTaxPercentage = gstPercentage + sgstPercentage;
+        
+        const basicPrice = totalTaxPercentage > 0 
+          ? price / (1 + (totalTaxPercentage / 100))
+          : price;
+
+        const gstAmount = basicPrice * (gstPercentage / 100);
+        const sgstAmount = basicPrice * (sgstPercentage / 100);
 
         setProduct(prev => ({
           ...prev,
           name: productData.productName || '',
-          baseUnit: productData.baseUnit || 'piece',
+          baseUnit: productData.baseUnit,
+          selectedUnit: selectedUnit, // Set the selected unit (either user-selected or baseUnit)
           basePrice: productData.basePrice || productData.mrpPrice || 0,
           secondaryPrice: productData.secondaryPrice || 0,
           conversionRate: productData.conversionRate || 1,
           mrpPrice: productData.mrpPrice || 0,
-          gst: productData.gst || 0,
+          gst: gstPercentage,
+          sgst: sgstPercentage,
           discount: productData.discount || 0,
           price: price,
+          basicPrice: basicPrice,
+          gstAmount: gstAmount,
+          sgstAmount: sgstAmount,
           quantity: '',
           totalPrice: 0,
           isManualPrice: false
@@ -107,10 +134,14 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
         name: '',
         mrpPrice: 0,
         gst: 0,
+        sgst: 0,
         discount: 0,
         price: 0,
+        basicPrice: 0,
         quantity: '',
         totalPrice: 0,
+        gstAmount: 0,
+        sgstAmount: 0,
         isManualPrice: false
       }));
       setAvailableUnits([]);
@@ -128,7 +159,7 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
 
   // Handle unit change separately
   useEffect(() => {
-    if (product.code && product.selectedUnit) {
+    if (product.code && (product.selectedUnit || product.baseUnit)) {
       fetchProductDetails(product.code);
     }
   }, [product.selectedUnit]);
@@ -137,8 +168,9 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
   useEffect(() => {
     if (product.quantity && product.price) {
       const quantity = parseFloat(product.quantity) || 0;
-      const totalPrice = quantity * parseFloat(product.price);
-      
+      const price = parseFloat(product.price) || 0;
+      const totalPrice = quantity * price;
+
       setProduct(prev => ({
         ...prev,
         totalPrice: totalPrice
@@ -149,36 +181,86 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
   const handleChange = (e) => {
     const { name, value } = e.target;
 
+    // List of numeric fields that should have leading zero handling
+    const numericFields = [
+      'quantity', 'price', 'gst', 'sgst', 'basicPrice', 'mrpPrice'
+    ];
+
+    // Process the value to remove leading zeros for numeric fields
+    let processedValue = value;
+    if (numericFields.includes(name)) {
+      // Remove leading zeros when user starts typing, but preserve "0." for decimals
+      if (value.length > 1 && value.startsWith('0') && !value.startsWith('0.')) {
+        processedValue = value.replace(/^0+/, '') || '0';
+      }
+    }
+
     if (name === 'quantity') {
-      const quantity = parseFloat(value) || 0;
-      const totalPrice = quantity * parseFloat(product.price);
-      
-      setProduct(prev => ({ 
-        ...prev, 
-        [name]: value,
+      const quantity = parseFloat(processedValue) || 0;
+      const price = parseFloat(product.price) || 0;
+      const totalPrice = quantity * price;
+
+      setProduct(prev => ({
+        ...prev,
+        [name]: processedValue,
         totalPrice: totalPrice
       }));
     } else if (name === 'price') {
-      const priceValue = parseFloat(value) || 0;
+      const priceValue = parseFloat(processedValue) || 0;
       const quantity = parseFloat(product.quantity) || 0;
-      const totalPrice = priceValue * quantity;
+      const totalPrice = quantity * priceValue;
+
+      // Recalculate basic price and tax amounts when price changes
+      const gstPercentage = product.gst || 0;
+      const sgstPercentage = product.sgst || 0;
+      const totalTaxPercentage = gstPercentage + sgstPercentage;
       
+      const basicPrice = totalTaxPercentage > 0 
+        ? priceValue / (1 + (totalTaxPercentage / 100))
+        : priceValue;
+
+      const gstAmount = basicPrice * (gstPercentage / 100);
+      const sgstAmount = basicPrice * (sgstPercentage / 100);
+
       setProduct(prev => ({
         ...prev,
         price: priceValue,
+        basicPrice: basicPrice,
+        gstAmount: gstAmount,
+        sgstAmount: sgstAmount,
         totalPrice: totalPrice,
         isManualPrice: true
       }));
+    } else if (name === 'gst' || name === 'sgst') {
+      const gstValue = name === 'gst' ? parseFloat(processedValue) || 0 : product.gst;
+      const sgstValue = name === 'sgst' ? parseFloat(processedValue) || 0 : product.sgst;
+      const priceValue = parseFloat(product.price) || 0;
+      const totalTaxPercentage = gstValue + sgstValue;
+      
+      const basicPrice = totalTaxPercentage > 0 
+        ? priceValue / (1 + (totalTaxPercentage / 100))
+        : priceValue;
+
+      const gstAmount = basicPrice * (gstValue / 100);
+      const sgstAmount = basicPrice * (sgstValue / 100);
+
+      setProduct(prev => ({
+        ...prev,
+        [name]: name === 'gst' ? gstValue : sgstValue,
+        basicPrice: basicPrice,
+        gstAmount: gstAmount,
+        sgstAmount: sgstAmount
+      }));
     } else {
-      setProduct(prev => ({ ...prev, [name]: value }));
+      setProduct(prev => ({ ...prev, [name]: processedValue }));
     }
   };
 
   const handleUnitChange = (e) => {
-    const selectedUnit = e.target.value;
-    setProduct(prev => ({ 
-      ...prev, 
-      selectedUnit, 
+    const selectedUnit = e.target.value || product.baseUnit; // Fall back to baseUnit if empty
+    setProduct(prev => ({
+      ...prev,
+      selectedUnit,
       isManualPrice: false
     }));
   };
@@ -202,8 +284,11 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
       id: Date.now(),
       quantity: quantityValue,
       price: parseFloat(product.price),
+      basicPrice: product.basicPrice,
+      gstAmount: product.gstAmount,
+      sgstAmount: product.sgstAmount,
       totalPrice: product.totalPrice,
-      unit: product.selectedUnit,
+      unit: product.selectedUnit || product.baseUnit, // Fall back to baseUnit if no selection
       isManualPrice: product.isManualPrice
     };
 
@@ -220,9 +305,10 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
 
   const handleEdit = (index) => {
     const productToEdit = products[index];
-    setProduct({ 
+    setProduct({
       ...productToEdit,
-      quantity: productToEdit.quantity.toString()
+      quantity: productToEdit.quantity.toString(),
+      selectedUnit: productToEdit.unit // Set the unit from the edited product
     });
     setEditingIndex(index);
     productCodeInputRef.current?.focus();
@@ -237,7 +323,7 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
       item.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const calculateTotal = () => filteredProducts.reduce((sum, item) => sum + (item.totalPrice || item.price * item.quantity), 0);
+  const calculateTotal = () => filteredProducts.reduce((sum, item) => sum + item.totalPrice, 0);
 
   const getUnitLabel = (unitValue) => {
     const unit = unitTypes.find(u => u.value === unitValue);
@@ -245,16 +331,19 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-gray-50 rounded-lg shadow-sm">
       {/* Product Form */}
-      <div className="bg-white p-3 mb-2 border border-gray-200">
+      <div className="bg-white p-4 mb-3 border border-gray-200 rounded-lg shadow-sm">
         <form onSubmit={handleSubmit}>
-          <div className="flex items-center justify-between space-x-4 mb-2">
-            <div className="relative flex-1">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-3 mb-3">
+            <div className="relative flex-1 w-full">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <FiSearch className="text-gray-400" />
+              </div>
               <input
                 type="text"
                 placeholder="Search products..."
-                className="w-full px-3 py-1 text-sm border border-gray-300 rounded"
+                className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 ref={searchProductInputRef}
@@ -262,51 +351,69 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
             </div>
             <button
               type="submit"
-              className={`px-3 py-1 text-sm rounded ${
-                editingIndex !== null ? 'bg-yellow-500' : 'bg-blue-600'
-              } text-white`}
+              className={`px-4 py-2 text-sm rounded-lg flex items-center gap-2 ${
+                editingIndex !== null 
+                  ? 'bg-yellow-500 hover:bg-yellow-600' 
+                  : 'bg-blue-600 hover:bg-blue-700'
+              } text-white transition-colors`}
               ref={addProductButtonRef}
               disabled={isLoading}
             >
-              {isLoading ? 'Loading...' : editingIndex !== null ? 'Update' : 'Add'} Product
+              {isLoading ? (
+                <>
+                  <FiRefreshCw className="animate-spin" />
+                  Loading...
+                </>
+              ) : editingIndex !== null ? (
+                <>
+                  <FiEdit2 />
+                  Update
+                </>
+              ) : (
+                <>
+                  <FiPlus />
+                  Add Product
+                </>
+              )}
             </button>
           </div>
 
-          <div className="grid grid-cols-8 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
             {/* Product Code */}
             <div className="col-span-1">
-              <label className="block text-xs text-gray-700 mb-1">Code*</label>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Code*</label>
               <input
                 type="text"
                 name="code"
                 value={product.code}
                 onChange={handleChange}
                 ref={productCodeInputRef}
-                className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
                 required
+                autoFocus
               />
             </div>
 
             {/* Product Name */}
             <div className="col-span-1">
-              <label className="block text-xs text-gray-700 mb-1">Name</label>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Name</label>
               <input
                 type="text"
                 name="name"
                 value={product.name}
                 readOnly
-                className="w-full px-2 py-1 text-sm border bg-gray-100 rounded"
+                className="w-full px-3 py-2 text-sm border bg-gray-100 rounded-lg"
               />
             </div>
 
             {/* Unit Selection */}
             <div className="col-span-1">
-              <label className="block text-xs text-gray-700 mb-1">Unit</label>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Unit</label>
               <select
                 name="selectedUnit"
-                value={product.selectedUnit}
+                value={product.selectedUnit || product.baseUnit}
                 onChange={handleUnitChange}
-                className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
                 disabled={isLoading}
               >
                 {availableUnits.map(unit => (
@@ -319,68 +426,85 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
 
             {/* Quantity */}
             <div className="col-span-1">
-              <label className="block text-xs text-gray-700 mb-1">Qty*</label>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Qty*</label>
               <input
-                type="number"
+                type="text"
                 name="quantity"
                 value={product.quantity}
                 onChange={handleChange}
                 ref={quantityInputRef}
-                className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
-                required
+                inputMode="numeric"
                 pattern="[0-9]*[.,]?[0-9]*"
+                className="no-arrows w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                required
               />
             </div>
 
-            {/* MRP Price (from DB) */}
+            {/* Basic Price (excluding taxes) */}
             <div className="col-span-1">
-              <label className="block text-xs text-gray-700 mb-1">MRP Price</label>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Basic Price</label>
               <input
-                type="number"
-                name="mrpPrice"
-                value={product.mrpPrice}
+                type="text"
+                name="basicPrice"
+                value={product.basicPrice.toFixed(2)}
                 readOnly
-                className="w-full px-2 py-1 text-sm border bg-gray-100 rounded"
+                className="w-full px-3 py-2 text-sm border bg-gray-100 rounded-lg"
               />
             </div>
 
             {/* GST */}
             <div className="col-span-1">
-              <label className="block text-xs text-gray-700 mb-1">GST %</label>
+              <label className="block text-xs font-medium text-gray-700 mb-1">GST %</label>
               <input
-                type="number"
+                type="text"
                 name="gst"
                 value={product.gst}
                 onChange={handleChange}
-                className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
+                inputMode="numeric"
+                pattern="[0-9]*[.,]?[0-9]*"
+                className="no-arrows w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
 
-            {/* Sales Price */}
+            {/* SGST */}
             <div className="col-span-1">
-              <label className="block text-xs text-gray-700 mb-1">Sales Price*</label>
+              <label className="block text-xs font-medium text-gray-700 mb-1">SGST %</label>
               <input
-                type="number"
+                type="text"
+                name="sgst"
+                value={product.sgst}
+                onChange={handleChange}
+                inputMode="numeric"
+                pattern="[0-9]*[.,]?[0-9]*"
+                className="no-arrows w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+
+            {/* Price (including taxes) */}
+            <div className="col-span-1">
+              <label className="block text-xs font-medium text-gray-700 mb-1">Price*</label>
+              <input
+                type="text"
                 name="price"
                 value={product.price}
                 onChange={handleChange}
-                step="0.01"
-                min="0"
+                inputMode="numeric"
+                pattern="[0-9]*[.,]?[0-9]*"
                 ref={priceInputRef}
-                className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
+                className="no-arrows w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
                 required
               />
             </div>
 
             {/* Total Price */}
             <div className="col-span-1">
-              <label className="block text-xs text-gray-700 mb-1">Total Price</label>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Total</label>
               <input
-                type="number"
+                type="text"
                 name="totalPrice"
                 value={product.totalPrice.toFixed(2)}
                 readOnly
-                className="w-full px-2 py-1 text-sm border bg-gray-100 rounded"
+                className="w-full px-3 py-2 text-sm border bg-gray-100 rounded-lg font-medium text-blue-600"
               />
             </div>
           </div>
@@ -388,69 +512,102 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
       </div>
 
       {/* Products Table */}
-      <div className="flex-1 bg-white border border-gray-200 overflow-hidden">
-        <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 250px)' }}>
+      <div className="flex-1 bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+        <div className="overflow-x-auto" style={{ maxHeight: 'calc(100vh - 250px)' }}>
           <table className="min-w-full border-collapse text-sm">
             <thead className="bg-gray-100 sticky top-0">
               <tr>
-                <th className="px-3 py-2 text-left border-b">S.No</th>
-                <th className="px-3 py-2 text-left border-b">Code</th>
-                <th className="px-3 py-2 text-left border-b">Name</th>
-                <th className="px-3 py-2 text-left border-b">MRP</th>
-                <th className="px-3 py-2 text-left border-b">GST %</th>
-                <th className="px-3 py-2 text-left border-b">Qty</th>
-                <th className="px-3 py-2 text-left border-b">Unit</th>
-                <th className="px-3 py-2 text-left border-b">Sales Price</th>
-                <th className="px-3 py-2 text-left border-b">Total Price</th>
-                <th className="px-3 py-2 text-left border-b">Action</th>
+                <th className="px-4 py-3 text-left border-b font-medium text-gray-700">#</th>
+                <th className="px-4 py-3 text-left border-b font-medium text-gray-700">Code</th>
+                <th className="px-4 py-3 text-left border-b font-medium text-gray-700">Name</th>
+                <th className="px-4 py-3 text-left border-b font-medium text-gray-700">MRP</th>
+                <th className="px-4 py-3 text-left border-b font-medium text-gray-700">Basic Price</th>
+                <th className="px-4 py-3 text-left border-b font-medium text-gray-700">GST % / GST Amt</th>
+                <th className="px-4 py-3 text-left border-b font-medium text-gray-700">SGST % / SGST Amt</th>
+                <th className="px-4 py-3 text-left border-b font-medium text-gray-700">Price</th>
+                <th className="px-4 py-3 text-left border-b font-medium text-gray-700">Qty/unit</th>
+                <th className="px-4 py-3 text-left border-b font-medium text-gray-700">Total</th>
+                <th className="px-4 py-3 text-left border-b font-medium text-gray-700">Action</th>
               </tr>
             </thead>
             <tbody>
-              {filteredProducts.map((item, index) => (
-                <tr key={item.id} className="hover:bg-gray-50">
-                  <td className="px-3 py-2 border-b">{index + 1}</td>
-                  <td className="px-3 py-2 border-b">{item.code}</td>
-                  <td className="px-3 py-2 border-b">{item.name}</td>
-                  <td className="px-3 py-2 border-b">{item.mrpPrice.toFixed(2)}</td>
-                  <td className="px-3 py-2 border-b">{item.gst}</td>
-                  <td className="px-3 py-2 border-b">
-                    {Number.isInteger(item.quantity) ? item.quantity : item.quantity}
-                  </td>
-                  <td className="px-3 py-2 border-b">
-                    {getUnitLabel(item.selectedUnit)}
-                  </td>
-                  <td className="px-3 py-2 border-b">{item.price.toFixed(2)}</td>
-                  <td className="px-3 py-2 border-b">{item.totalPrice.toFixed(2)}</td>
-                  <td className="px-3 py-2 border-b">
-                    <button
-                      onClick={() => handleEdit(index)}
-                      className="text-blue-600 hover:text-blue-800 mr-2"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleRemove(index)}
-                      className="text-red-600 hover:text-red-800"
-                    >
-                      Remove
-                    </button>
+              {filteredProducts.length > 0 ? (
+                filteredProducts.map((item, index) => {
+                  const basicPriceTotal = item.basicPrice;
+                  const gstAmountTotal = item.gstAmount;
+                  const sgstAmountTotal = item.sgstAmount;
+                  const priceTotal = item.price;
+                  const totalPrice = item.price * item.quantity;
+
+                  return (
+                    <tr key={item.id} className="hover:bg-gray-50 border-b">
+                      <td className="px-4 py-3">{index + 1}</td>
+                      <td className="px-4 py-3 font-medium">{item.code}</td>
+                      <td className="px-4 py-3">{item.name}</td>
+                      <td className="px-4 py-3">₹{item.mrpPrice.toFixed(2)}</td>
+                      <td className="px-4 py-3">₹{basicPriceTotal.toFixed(2)}</td>
+                      <td className="px-4 py-3">{item.gst}% <span className='flex'>₹{gstAmountTotal.toFixed(2)}</span></td>
+                      <td className="px-4 py-3">{item.sgst}% <span className='flex'>₹{sgstAmountTotal.toFixed(2)}</span></td>
+                      <td className="px-4 py-3">₹{priceTotal.toFixed(2)}</td>
+                      <td className="px-4 py-3">
+                        {Number.isInteger(item.quantity) ? item.quantity : item.quantity.toFixed(2)} {getUnitLabel(item.unit)}
+                      </td>
+                      <td className="px-4 py-3 font-medium">₹{totalPrice.toFixed(2)}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleEdit(index)}
+                            className="text-blue-600 hover:text-blue-800 p-1 rounded hover:bg-blue-50"
+                            title="Edit"
+                          >
+                            <FiEdit2 />
+                          </button>
+                          <button
+                            onClick={() => handleRemove(index)}
+                            className="text-red-600 hover:text-red-800 p-1 rounded hover:bg-red-50"
+                            title="Remove"
+                          >
+                            <FiTrash2 />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              ) : (
+                <tr>
+                  <td colSpan="14" className="px-4 py-8 text-center text-gray-500">
+                    {products.length > 0 
+                      ? 'No products match your search'
+                      : 'No products added yet. Start by adding products above.'}
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
 
         {/* Footer with total */}
         {filteredProducts.length > 0 && (
-          <div className="bg-gray-50 px-4 py-2 border-t">
-            <div className="flex justify-between items-center">
+          <div className="bg-gray-50 px-6 py-3 border-t sticky bottom-0">
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-2">
               <span className="text-sm text-gray-600">
-                {filteredProducts.length} items
+                {filteredProducts.length} {filteredProducts.length === 1 ? 'item' : 'items'}
               </span>
-              <span className="text-lg font-semibold">
-                Grand Total: ₹{calculateTotal().toFixed(2)}
-              </span>
+              <div className="flex items-center gap-4">
+                <span className="text-sm font-medium text-gray-700">
+                  Subtotal: ₹{filteredProducts.reduce((sum, item) => sum + (item.basicPrice * item.quantity), 0).toFixed(2)}
+                </span>
+                <span className="text-sm font-medium text-gray-700">
+                  GST: ₹{filteredProducts.reduce((sum, item) => sum + (item.gstAmount * item.quantity), 0).toFixed(2)}
+                </span>
+                <span className="text-sm font-medium text-gray-700">
+                  SGST: ₹{filteredProducts.reduce((sum, item) => sum + (item.sgstAmount * item.quantity), 0).toFixed(2)}
+                </span>
+                <span className="text-lg font-bold text-blue-600">
+                  Grand Total: ₹{calculateTotal().toFixed(2)}
+                </span>
+              </div>
             </div>
           </div>
         )}
