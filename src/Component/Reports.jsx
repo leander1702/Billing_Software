@@ -21,6 +21,7 @@ import {
   FiCalendar,
   FiDownload,
 } from 'react-icons/fi';
+import Api from '../services/api';
 
 ChartJS.register(
   BarElement,
@@ -45,20 +46,20 @@ const Reports = () => {
   const [salesChartData, setSalesChartData] = useState({ labels: [], datasets: [] });
   const [transactionChartData, setTransactionChartData] = useState({ labels: [], datasets: [] });
 
-  useEffect(() => {
-    fetch('http://localhost:5000/api/bills')
-      .then((res) => res.json())
-      .then((data) => {
-        setBills(data);
-        calculateMetrics(data);
-        processChartData(data);
-        setIsLoading(false);
-      })
-      .catch((err) => {
-        console.error('Error fetching bills:', err);
-        setIsLoading(false);
-      });
-  }, []);
+ useEffect(() => {
+  Api.get('/bills')
+    .then((response) => {
+      const data = response.data;
+      setBills(data);
+      calculateMetrics(data);
+      processChartData(data);
+      setIsLoading(false);
+    })
+    .catch((err) => {
+      console.error('Error fetching bills:', err);
+      setIsLoading(false);
+    });
+}, []);
 
   const calculateMetrics = (billsData) => {
     const revenue = billsData.reduce((sum, bill) => sum + (bill.total || 0), 0);

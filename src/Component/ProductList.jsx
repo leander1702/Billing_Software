@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
 import '../App.css';
 import { toast } from 'react-toastify';
 import { FiEdit2, FiTrash2, FiSearch, FiPlus, FiRefreshCw } from 'react-icons/fi';
+import Api from '../services/api';
 
 function ProductList({ products, onAdd, onEdit, onRemove }) {
   const initialProduct = {
@@ -57,7 +57,7 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
   useEffect(() => {
     const fetchStock = async () => {
       try {
-        const res = await axios.get('http://localhost:5000/api/stock-summary');
+        const res = await Api.get('/stock-summary');
         setStockData(res.data);
       } catch (err) {
         console.error('Error fetching stock data:', err);
@@ -71,7 +71,7 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
     setIsLoading(true);
 
     try {
-      const res = await axios.get(`http://localhost:5000/api/products/code/${productCode}`);
+      const res = await Api.get(`/products/code/${productCode}`);
       const productData = res.data;
 
       if (productData) {
@@ -522,8 +522,8 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
                 <th className="px-4 py-3 text-left border-b font-medium text-gray-700">Name</th>
                 <th className="px-4 py-3 text-left border-b font-medium text-gray-700">MRP</th>
                 <th className="px-4 py-3 text-left border-b font-medium text-gray-700">Basic Price</th>
-                <th className="px-4 py-3 text-left border-b font-medium text-gray-700">GST % / GST Amt</th>
-                <th className="px-4 py-3 text-left border-b font-medium text-gray-700">SGST % / SGST Amt</th>
+                <th className="px-4 py-3 text-left border-b font-medium text-gray-700">GST % /<span className='flex'>GST Amt</span></th>
+                <th className="px-4 py-3 text-left border-b font-medium text-gray-700">SGST % /<span className='flex'>SGST Amt</span></th>
                 <th className="px-4 py-3 text-left border-b font-medium text-gray-700">Price</th>
                 <th className="px-4 py-3 text-left border-b font-medium text-gray-700">Qty/unit</th>
                 <th className="px-4 py-3 text-left border-b font-medium text-gray-700">Total</th>

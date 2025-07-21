@@ -1,7 +1,7 @@
 // src/components/CashierDetails.jsx
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
 import { toast } from 'react-toastify';
+import Api from '../services/api';
 
 const CashierDetails = () => {
   const [cashier, setCashier] = useState(null);
@@ -16,7 +16,7 @@ const CashierDetails = () => {
   useEffect(() => {
     const fetchCashier = async () => {
       try {
-        const res = await axios.get("http://localhost:5000/api/credentials/users");
+        const res = await Api.get("/credentials/users");
         if (res.data.length > 0) {
           setCashier(res.data[0]); // Assuming the first user is the cashier
         }

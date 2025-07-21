@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import Api from '../services/api';
 
 const Header = () => {
     const location = useLocation();
@@ -13,7 +13,7 @@ const Header = () => {
     useEffect(() => {
         const fetchCompany = async () => {
             try {
-                const res = await axios.get('http://localhost:5000/api/companies');
+                const res = await Api.get('/companies');
                 if (res.data?.length > 0) {
                     setCompany(res.data[0]);
                 }
