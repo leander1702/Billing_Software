@@ -23,7 +23,7 @@ const BillingSystem = ({
   });
   const [products, setProducts] = useState([]);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [currentBill, setCurrentBill] = useState(null);
+  const [currentBill, setCurrentBill] = useState(null); // This holds the 'new bill' data if any
   const [isSaving, setIsSaving] = useState(false);
   const [isCheckingCustomer, setIsCheckingCustomer] = useState(false);
   const [customerOutstandingCredit, setCustomerOutstandingCredit] = useState(0);
@@ -128,6 +128,9 @@ const BillingSystem = ({
   };
 
   const calculateGrandTotal = () => {
+    // This grand total is for the combined sum displayed in BillSummary.
+    // The payment modal will use `currentBillTotal` for the new items
+    // and `partialOutstandingPayment` for selected old items.
     return calculateCurrentBillTotal() + customerOutstandingCredit;
   };
 
@@ -141,95 +144,124 @@ const BillingSystem = ({
 
   const handleProceedToPayment = () => {
     if (!customer.id && (!customer.name.trim() || customer.contact.length !== 10)) {
-        toast.error('Please enter complete customer details before proceeding to payment.');
-        return;
+      toast.error('Please enter complete customer details before proceeding to payment.');
+      return;
     }
+    // Allow proceeding to payment if there are products OR if there's outstanding credit
     if (products.length === 0 && customerOutstandingCredit === 0) {
       toast.error('Please add products or resolve outstanding credit before proceeding to payment.');
       return;
     }
 
+    // Pass data for a potential new bill.
+    // If only outstanding is being paid, currentBillTotal will be 0, and products will be empty.
     setCurrentBill({
       customer,
-      products,
+      products, // Products for the NEW bill
       productSubtotal: calculateProductsSubtotal(),
       productGst: calculateProductsGst(),
-      currentBillTotal: calculateCurrentBillTotal(),
-      previousOutstandingCredit: customerOutstandingCredit,
-      grandTotal: calculateGrandTotal(),
+      currentBillTotal: calculateCurrentBillTotal(), // Total for the NEW products
+      previousOutstandingCredit: customerOutstandingCredit, // Full outstanding
+      grandTotal: calculateGrandTotal(), // Combined total, for display/initial payment amount
       date: new Date().toISOString(),
-      billNumber: `BILL-${customer.id || 'N/A'}-${Date.now()}`,
+      // Generate a bill number ONLY if there are new products.
+      // Otherwise, the backend will handle updates to existing bills.
+      billNumber: calculateCurrentBillTotal() > 0 ? `BILL-${customer.id || 'NEW'}-${Date.now()}` : '',
     });
     setShowPaymentModal(true);
   };
 
   const handlePaymentComplete = async (paymentDetails) => {
-    if (!currentBill) {
-      toast.error('No bill data available for payment. Please try again.');
-      return;
-    }
+    setIsSaving(true);
+    let apiUrl = '';
+    let payload = {};
 
-    const { amountPaid } = paymentDetails;
-    const { grandTotal } = currentBill; // Grand total including previous credit and current products
+    // Determine if a new bill is involved or only outstanding bills are being settled
+    const isNewBillPresent = (currentBill?.currentBillTotal || 0) > 0;
 
-    // This calculation is correct for determining the unpaid amount FOR THIS TRANSACTION,
-    // which will be stored in the bill record.
-    // The actual customer outstanding credit will be determined by the backend.
-    let unpaidAmountForThisTransactionRecord = 0;
-    if (amountPaid < grandTotal) {
-      unpaidAmountForThisTransactionRecord = grandTotal - amountPaid;
+    if (isNewBillPresent) {
+      // Scenario 1: New Bill Payment + Optional Outstanding Payments
+      // This goes to your existing POST /api/bills endpoint
+      apiUrl = 'http://localhost:5000/api/bills';
+      payload = {
+        customer: currentBill.customer,
+        products: currentBill.products, // Products for the new bill
+        productSubtotal: currentBill.productSubtotal,
+        productGst: currentBill.productGst,
+        currentBillTotal: currentBill.currentBillTotal, // Total for the new products only
+        previousOutstandingCredit: currentBill.previousOutstandingCredit, // Full outstanding customer had before this transaction
+        grandTotal: paymentDetails.totalAmountDueForSelected, // This is the total the user is paying for (new + selected outstanding)
+
+        payment: {
+          method: paymentDetails.method,
+          amountPaid: paymentDetails.amountPaid, // Total amount collected by the user
+          transactionId: paymentDetails.transactionId,
+          // Explicitly pass amounts allocated to current vs. outstanding by PaymentModal
+          currentBillPayment: paymentDetails.currentBillPayment,
+          selectedOutstandingPayment: paymentDetails.selectedOutstandingPayment,
+        },
+        billNumber: currentBill.billNumber, // The new bill number
+        date: currentBill.date,
+        // The unpaidAmountForThisBill here reflects the unpaid portion of the *new* bill.
+        // The backend will manage the unpaidAmountForThisBill for selected old bills.
+        unpaidAmountForThisBill: Math.max(0, currentBill.currentBillTotal - paymentDetails.currentBillPayment),
+        selectedUnpaidBillIds: paymentDetails.selectedUnpaidBillIds, // IDs of bills selected for payment
+      };
     } else {
-        unpaidAmountForThisTransactionRecord = 0;
+      // Scenario 2: Outstanding Bill Payment ONLY (no new bill)
+      // This goes to the new dedicated endpoint for settling outstanding bills
+      apiUrl = 'http://localhost:5000/api/bills/settle-outstanding';
+      payload = {
+        customerId: customer.id, // The ID of the customer whose bills are being settled
+        paymentMethod: paymentDetails.method,
+        transactionId: paymentDetails.transactionId,
+        amountPaid: paymentDetails.amountPaid, // The total amount paid for outstanding bills
+        selectedUnpaidBillIds: paymentDetails.selectedUnpaidBillIds,
+      };
+      // For this scenario, we don't send `products`, `currentBillTotal`, `billNumber` etc.,
+      // as no new bill is being created.
     }
 
-    // Prepare the bill data to send to the backend
-    const completeBill = {
-      customer: currentBill.customer,
-      products: currentBill.products,
-      productSubtotal: currentBill.productSubtotal,
-      productGst: currentBill.productGst,
-      currentBillTotal: currentBill.currentBillTotal,
-      previousOutstandingCredit: currentBill.previousOutstandingCredit,
-      grandTotal: grandTotal,
-      payment: {
-        method: paymentDetails.method,
-        amountPaid: parseFloat(amountPaid),
-        transactionId: paymentDetails.transactionId || '',
-      },
-      billNumber: currentBill.billNumber,
-      date: currentBill.date,
-      // Send this calculated value to the backend for the Bill record
-      unpaidAmountForThisBill: unpaidAmountForThisTransactionRecord,
-    };
-
-    console.log("✅ Sending completeBill to backend:", completeBill);
+    console.log(`✅ Sending payload to ${apiUrl}:`, payload);
 
     try {
-      setIsSaving(true);
-
-      const res = await fetch('http://localhost:5000/api/bills', {
-        method: 'POST',
+      const res = await fetch(apiUrl, {
+        method: 'POST', // Both endpoints currently use POST
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(completeBill),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
         const errorData = await res.json();
         console.error('❌ Backend responded with error:', errorData);
-        throw new Error(errorData.message || 'Failed to save bill');
+        throw new Error(errorData.message || 'Payment processing failed.');
       }
 
       const data = await res.json();
-      console.log('✅ Bill saved successfully:', data);
-      toast.success('Payment successful and bill saved!');
+      console.log('✅ Payment processed successfully:', data);
+      toast.success(data.message || 'Payment successful!');
 
       // ✨ CRUCIAL UPDATE: Update the frontend's customerOutstandingCredit
-      // with the value returned from the backend. The backend is the source of truth.
-      setCustomerOutstandingCredit(data.customerNewOutstandingCredit);
+      // with the value returned from the backend. The backend is the source of truth
+      // for the customer's overall outstanding.
+      // Adjust this based on what your backend actually returns:
+      // If the backend directly returns customer's new outstanding:
+      if (data.customerNewOutstandingCredit !== undefined) {
+        setCustomerOutstandingCredit(data.customerNewOutstandingCredit);
+      } else {
+        // If the backend returns updated bill data, you might need to re-fetch customer's data
+        // or recalculate outstanding from updatedBills list.
+        // For simplicity, let's assume `customerNewOutstandingCredit` is returned by both endpoints.
+        // If not, you'd trigger a `fetchCustomerDetails` here.
+        console.warn("Backend did not return 'customerNewOutstandingCredit'. Consider re-fetching customer details.");
+        // Example: await handleCustomerSubmit({ contact: customer.contact }); // Re-fetch customer data
+      }
+
+
       handleFinalClose(); // Close modal and reset for new bill (resets outstanding credit too)
     } catch (err) {
-      console.error('❌ Error saving bill:', err.message);
-      toast.error(`Failed to save bill: ${err.message}. Please try again.`);
+      console.error('❌ Error processing payment:', err.message);
+      toast.error(`Failed to process payment: ${err.message}. Please try again.`);
     } finally {
       setIsSaving(false);
     }
