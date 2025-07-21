@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { toast } from 'react-toastify';
+import Api from '../services/api';
 
 function CustomerDetails({ customer, onSubmit, onFocusCustomerName, onFocusPhoneNumber }) {
   const [formData, setFormData] = useState({ 
@@ -54,29 +55,31 @@ function CustomerDetails({ customer, onSubmit, onFocusCustomerName, onFocusPhone
       setIsEditing(!customer?.id);
     }
   }, [customer]);
+const handleContactChange = async (e) => {
+  const contact = e.target.value.replace(/\D/g, '').slice(0, 10);
+  setFormData(prev => ({ ...prev, contact }));
 
-  const handleContactChange = async (e) => {
-    const contact = e.target.value.replace(/\D/g, '').slice(0, 10);
-    setFormData(prev => ({ ...prev, contact }));
+  if (contact.length === 10) {
+    setIsLoading(true);
+    try {
+      const response = await Api.get(`/customers?contact=${contact}`);
+      
+      // Customer found (200 OK)
+      const data = response.data;
+      toast.success(`Existing customer found: ${data.name}`);
+      setFormData({
+        name: data.name || '',
+        contact: data.contact || '',
+        aadhaar: data.aadhaar || '',
+        location: data.location || ''
+      });
+      setFoundInDB(true);
+      setIsEditing(true);
 
-    if (contact.length === 10) {
-      setIsLoading(true);
-      try {
-        const res = await fetch(`http://localhost:5000/api/customers?contact=${contact}`);
-        if (res.ok) {
-          const data = await res.json();
-          if (data) {
-            toast.success(`Existing customer found: ${data.name}`);
-            setFormData({
-              name: data.name || '',
-              contact: data.contact || '',
-              aadhaar: data.aadhaar || '',
-              location: data.location || ''
-            });
-            setFoundInDB(true);
-            setIsEditing(true);        
-          }
-        } else if (res.status === 404) {
+    } catch (err) {
+      if (axios.isAxiosError(err)) {
+        if (err.response?.status === 404) {
+          // Customer not found
           setFormData(prev => ({ 
             ...prev, 
             name: '',
@@ -86,18 +89,22 @@ function CustomerDetails({ customer, onSubmit, onFocusCustomerName, onFocusPhone
           setFoundInDB(false);
           setIsEditing(true);
           toast.info('New customer - please enter details');
+        } else {
+          // Other server errors (500, etc.)
+          toast.error('Error searching for customer');
         }
-      } catch (err) {
-        toast.error('Error searching for customer');
-      } finally {
-        setIsLoading(false);
+      } else {
+        // Non-Axios errors (network issues, etc.)
+        toast.error('Network error - please try again');
       }
-    } else {
-      setFoundInDB(false);
-      setIsEditing(true);
+    } finally {
+      setIsLoading(false);
     }
-  };
-
+  } else {
+    setFoundInDB(false);
+    setIsEditing(true);
+  }
+};
   const handleNameChange = (e) => {
     setFormData(prev => ({ ...prev, name: e.target.value }));
   };

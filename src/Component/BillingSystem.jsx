@@ -6,6 +6,7 @@ import BillSummary from './BillSummary';
 import PaymentModal from './PaymentModal';
 import { toast } from 'react-toastify';
 import CashierDetails from './CashierDetails';
+import Api from '../services/api';
 
 const BillingSystem = ({
   onFocusProductSearch,
@@ -87,45 +88,57 @@ const BillingSystem = ({
     toast.success('Print command sent (check console for bill data)!');
   };
 
-  const handleCustomerSubmit = async (customerData) => {
-    try {
-      setIsCheckingCustomer(true);
-      const res = await fetch('http://localhost:5000/api/bills');
-      if (!res.ok) throw new Error('Failed to fetch bills');
-      const bills = await res.json();
 
-      const existing = bills.find(
-        (bill) => bill.customer.contact === customerData.contact
-      );
+ const handleCustomerSubmit = async (customerData) => {
+  try {
+    setIsCheckingCustomer(true);
+    const response = await Api.get('/bills');
+    const bills = response.data;
 
-      if (existing) {
-        toast.info('Existing customer detected. Auto-filling details.');
-        setCustomer({
-          id: existing.customer.id,
-          name: existing.customer.name,
-          contact: existing.customer.contact,
-        });
-      } else {
-        const allCustomerIds = bills.map((bill) => parseInt(bill.customer.id)).filter(id => !isNaN(id));
-        const maxId = allCustomerIds.length > 0 ? Math.max(...allCustomerIds) : 1000;
-        const newId = maxId + 1;
+    const existing = bills.find(
+      (bill) => bill.customer.contact === customerData.contact
+    );
 
-        setCustomer({
-          id: customerData.id || customer.id || '', // use new or fallback to old
-          name: customerData.name,
-          contact: customerData.contact,
-          aadhaar: customerData.aadhaar || '',
-          location: customerData.location || ''
-        });
-        toast.success('Customer details updated!');
-      }
-    } catch (error) {
-      console.error('Error checking customer:', error);
-      toast.error('Error checking customer. Please try again.');
-    } finally {
-      setIsCheckingCustomer(false);
+    if (existing) {
+      toast.info('Existing customer detected. Auto-filling details.');
+      setCustomer({
+        id: existing.customer.id,
+        name: existing.customer.name,
+        contact: existing.customer.contact,
+      });
+    } else {
+      const allCustomerIds = bills
+        .map((bill) => parseInt(bill.customer.id))
+        .filter(id => !isNaN(id));
+      const maxId = allCustomerIds.length > 0 ? Math.max(...allCustomerIds) : 1000;
+      const newId = maxId + 1;
+
+      setCustomer({
+        ...customerData,
+        id: newId.toString(),
+      });
+      toast.success(`New customer ID assigned: ${newId}`);
     }
-  };
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      if (error.response) {
+        // Server responded with error status (4xx/5xx)
+        console.error('Server Error:', error.response.status, error.response.data);
+        toast.error('Server error while checking customer');
+      } else if (error.request) {
+        // No response received
+        console.error('Network Error:', error.message);
+        toast.error('Network error. Please check your connection');
+      }
+    } else {
+      // Non-Axios error
+      console.error('Error:', error.message);
+      toast.error('Error checking customer. Please try again.');
+    }
+  } finally {
+    setIsCheckingCustomer(false);
+  }
+};
 
   const handleEditCustomer = () => {
     console.log('Edit customer initiated');
@@ -202,55 +215,59 @@ const BillingSystem = ({
     setShowPaymentModal(true);
   };
 
-  const handlePaymentComplete = async (paymentDetails) => {
-    if (!currentBill) {
-      toast.error('No bill data available for payment. Please try again.');
-      return;
-    }
+const handlePaymentComplete = async (paymentDetails) => {
+  if (!currentBill) {
+    toast.error('No bill data available for payment. Please try again.');
+    return;
+  }
 
-    const completeBill = {
-      customer: currentBill.customer,
-      products: currentBill.products,
-      subtotal: currentBill.subtotal,
-      gst: currentBill.gst,
-      total: currentBill.total,
-      payment: {
-        method: paymentDetails.method,
-        amountPaid: paymentDetails.amountPaid,
-        transactionId: paymentDetails.transactionId || '',
-      },
-      billNumber: currentBill.billNumber,
-      date: currentBill.date,
-    };
-
-    console.log("✅ Sending completeBill to backend:", completeBill);
-
-    try {
-      setIsSaving(true);
-
-      const res = await fetch('http://localhost:5000/api/bills', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(completeBill),
-      });
-      console.log(completeBill)
-      if (!res.ok) {
-        const errorData = await res.json();
-        console.error('❌ Backend responded with error:', errorData);
-        throw new Error(errorData.message || 'Failed to save bill');
-      }
-
-      const data = await res.json();
-      console.log('✅ Bill saved successfully:', data);
-      toast.success('Payment successful and bill saved!');
-      handleFinalClose(); // Call handleFinalClose after successful payment
-    } catch (err) {
-      console.error('❌ Error saving bill:', err.message);
-      toast.error(`Failed to save bill: ${err.message}. Please try again.`);
-    } finally {
-      setIsSaving(false);
-    }
+  const completeBill = {
+    customer: currentBill.customer,
+    products: currentBill.products,
+    subtotal: currentBill.subtotal,
+    gst: currentBill.gst,
+    total: currentBill.total,
+    payment: {
+      method: paymentDetails.method,
+      amountPaid: paymentDetails.amountPaid,
+      transactionId: paymentDetails.transactionId || '',
+    },
+    billNumber: currentBill.billNumber,
+    date: currentBill.date,
   };
+
+  console.log("✅ Sending completeBill to backend:", completeBill);
+
+  try {
+    setIsSaving(true);
+
+    const response = await Api.post('/bills', completeBill, {
+      headers: { 'Content-Type': 'application/json' }
+    });
+    console.log('✅ Bill saved successfully:', response.data);
+    toast.success('Payment successful and bill saved!');
+    handleFinalClose(); // Call handleFinalClose after successful payment
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      if (error.response) {
+        // Server responded with error status (4xx/5xx)
+        console.error('❌ Backend error:', error.response.status, error.response.data);
+        const errorMessage = error.response.data?.message || 'Failed to save bill';
+        toast.error(`Failed to save bill: ${errorMessage}`);
+      } else if (error.request) {
+        // No response received
+        console.error('❌ Network error:', error.message);
+        toast.error('Network error. Please check your connection');
+      }
+    } else {
+      // Non-Axios error
+      console.error('❌ Unexpected error:', error.message);
+      toast.error(`Failed to save bill: ${error.message}`);
+    }
+  } finally {
+    setIsSaving(false);
+  }
+};
 
   const handleFinalClose = () => {
     setShowPaymentModal(false);

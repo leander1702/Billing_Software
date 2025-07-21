@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import {
   Home, BarChart2, Search, Package, Plus, ShoppingCart, User, Phone, Pause, Printer, CreditCard, LogOut // Lucide React Icons
 } from 'lucide-react'; // Import icons for a professional look
+import Api from '../services/api';
 
 // Accept new props for shortcut actions as refs
 const Navbar = ({
@@ -27,7 +27,7 @@ const Navbar = ({
   useEffect(() => {
     const fetchCompany = async () => {
       try {
-        const res = await axios.get('http://localhost:5000/api/companies');
+        const res = await Api.get('/companies');
         if (res.data?.length > 0) {
           setCompany(res.data[0]);
         }

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import Api from '../services/api';
 
 const Sales = () => {
   const [bills, setBills] = useState([]);
@@ -24,19 +25,20 @@ const Sales = () => {
   });
 
   useEffect(() => {
-    fetch('http://localhost:5000/api/bills')
-      .then(res => res.json())
-      .then(data => {
-        setBills(data);
-        setIsLoading(false);
-        calculateSalesData(data);
-        calculateTotalAmounts(data); // Calculate total amounts when bills are fetched
-      })
-      .catch(err => {
-        console.error('Error fetching bills:', err);
-        setIsLoading(false);
-      });
-  }, []);
+  Api.get('/bills')
+    .then(response => {
+      const data = response.data;
+      setBills(data);
+      setIsLoading(false);
+      calculateSalesData(data);
+      calculateTotalAmounts(data); 
+      console.log("res", data);
+    })
+    .catch(err => {
+      console.error('Error fetching bills:', err);
+      setIsLoading(false);
+    });
+}, []);
 
   useEffect(() => {
     filterBillsByCustomerPeriod(selectedCustomerPeriod, bills);

@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import logo from '../../src/assets/ATS LOGO BLUE.svg';
 import bill from '../../src/assets/IMG1.svg';
+import Api from '../services/api';
 
 const UserLogin = () => {
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -25,7 +25,7 @@ const UserLogin = () => {
 
     try {
       // Change the API endpoint to '/users' for cashier login
-      const res = await axios.get("http://localhost:5000/api/credentials/users");
+      const res = await Api.get("/credentials/users");
 
       // Assuming the '/users' endpoint returns an array of user objects
       const usersData = res.data; 
