@@ -88,6 +88,7 @@ const BillingSystem = ({
     toast.success('Print command sent (check console for bill data)!');
   };
 
+
  const handleCustomerSubmit = async (customerData) => {
   try {
     setIsCheckingCustomer(true);
@@ -243,7 +244,6 @@ const handlePaymentComplete = async (paymentDetails) => {
     const response = await Api.post('/bills', completeBill, {
       headers: { 'Content-Type': 'application/json' }
     });
-
     console.log('✅ Bill saved successfully:', response.data);
     toast.success('Payment successful and bill saved!');
     handleFinalClose(); // Call handleFinalClose after successful payment
@@ -316,7 +316,7 @@ const handlePaymentComplete = async (paymentDetails) => {
               onPrint={handlePrint}
               isHeld={isHeld}
               onHoldToggle={handleHoldToggle}
-              heldBillExists={!!heldBill} 
+              heldBillExists={!!heldBill}
               onTriggerHold={onTriggerHold}
               onTriggerPrint={onTriggerPrint}
               onTriggerPayment={onTriggerPayment}
