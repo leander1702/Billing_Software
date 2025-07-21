@@ -33,6 +33,8 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
   const [stockData, setStockData] = useState([]);
   const [availableUnits, setAvailableUnits] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [nameSuggestions, setNameSuggestions] = useState([]);
+  const [showNameSuggestions, setShowNameSuggestions] = useState(false);
 
   const unitTypes = [
     { value: 'piece', label: 'Pcs' },
@@ -49,6 +51,7 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
   // Refs for input fields
   const searchProductInputRef = useRef(null);
   const productCodeInputRef = useRef(null);
+  const productNameInputRef = useRef(null);
   const quantityInputRef = useRef(null);
   const addProductButtonRef = useRef(null);
   const priceInputRef = useRef(null);
@@ -66,12 +69,30 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
     fetchStock();
   }, []);
 
-  const fetchProductDetails = async (productCode) => {
-    if (!productCode.trim()) return;
+  // Fetch product suggestions by name
+  const fetchProductSuggestions = async (name) => {
+    if (name.length < 2) {
+      setNameSuggestions([]);
+      return;
+    }
+
+    try {
+      const res = await Api.get(`/products/search?query=${name}`);
+      setNameSuggestions(res.data || []);
+      setShowNameSuggestions(true);
+    } catch (err) {
+      console.error('Error fetching product suggestions:', err);
+      setNameSuggestions([]);
+    }
+  };
+
+  const fetchProductDetails = async (identifier, isCode = true) => {
+    if (!identifier.trim()) return;
     setIsLoading(true);
 
     try {
-      const res = await Api.get(`/products/code/${productCode}`);
+      const endpoint = isCode ? `/products/code/${identifier}` : `/products/name/${identifier}`;
+      const res = await Api.get(endpoint);
       const productData = res.data;
 
       if (productData) {
@@ -80,19 +101,14 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
 
         setAvailableUnits(units);
 
-        // Determine which unit to use (selected unit or fall back to baseUnit)
         const selectedUnit = product.selectedUnit || productData.baseUnit;
-
-        // Calculate price based on selected unit
         let price = productData.mrp || 0;
-        if (selectedUnit === productData.baseUnit) {
-          price = productData.mrp || 0;
-        } else if (selectedUnit === productData.secondaryUnit) {
+        
+        if (selectedUnit === productData.secondaryUnit) {
           price = productData.mrp / productData.conversionRate;
           price = Math.round(price * 10) / 10;
         }
 
-        // Calculate basic price (price excluding GST/SGST)
         const gstPercentage = productData.gst || 0;
         const sgstPercentage = productData.sgst || 0;
         const totalTaxPercentage = gstPercentage + sgstPercentage;
@@ -106,9 +122,10 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
 
         setProduct(prev => ({
           ...prev,
+          code: productData.productCode || '',
           name: productData.productName || '',
           baseUnit: productData.baseUnit,
-          selectedUnit: selectedUnit, // Set the selected unit (either user-selected or baseUnit)
+          selectedUnit: selectedUnit,
           basePrice: productData.basePrice || productData.mrpPrice || 0,
           secondaryPrice: productData.secondaryPrice || 0,
           conversionRate: productData.conversionRate || 1,
@@ -129,6 +146,7 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
       }
     } catch (err) {
       console.error('Error fetching product details', err);
+      toast.error("Product not found");
       setProduct(prev => ({
         ...prev,
         name: '',
@@ -153,14 +171,29 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
   // Auto-fetch product details when code changes
   useEffect(() => {
     if (product.code && !editingIndex) {
-      fetchProductDetails(product.code);
+      const timer = setTimeout(() => {
+        fetchProductDetails(product.code, true);
+      }, 500);
+      return () => clearTimeout(timer);
     }
   }, [product.code, editingIndex]);
 
-  // Handle unit change separately
+  // Handle name changes and fetch suggestions
+  const handleNameChange = (e) => {
+    const { value } = e.target;
+    setProduct(prev => ({ ...prev, name: value }));
+    
+    if (value.length > 1) {
+      fetchProductSuggestions(value);
+    } else {
+      setNameSuggestions([]);
+    }
+  };
+
+  // Handle unit change
   useEffect(() => {
     if (product.code && (product.selectedUnit || product.baseUnit)) {
-      fetchProductDetails(product.code);
+      fetchProductDetails(product.code, true);
     }
   }, [product.selectedUnit]);
 
@@ -180,16 +213,10 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    const numericFields = ['quantity', 'price', 'gst', 'sgst', 'basicPrice', 'mrpPrice'];
 
-    // List of numeric fields that should have leading zero handling
-    const numericFields = [
-      'quantity', 'price', 'gst', 'sgst', 'basicPrice', 'mrpPrice'
-    ];
-
-    // Process the value to remove leading zeros for numeric fields
     let processedValue = value;
     if (numericFields.includes(name)) {
-      // Remove leading zeros when user starts typing, but preserve "0." for decimals
       if (value.length > 1 && value.startsWith('0') && !value.startsWith('0.')) {
         processedValue = value.replace(/^0+/, '') || '0';
       }
@@ -210,7 +237,6 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
       const quantity = parseFloat(product.quantity) || 0;
       const totalPrice = quantity * priceValue;
 
-      // Recalculate basic price and tax amounts when price changes
       const gstPercentage = product.gst || 0;
       const sgstPercentage = product.sgst || 0;
       const totalTaxPercentage = gstPercentage + sgstPercentage;
@@ -257,7 +283,7 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
   };
 
   const handleUnitChange = (e) => {
-    const selectedUnit = e.target.value || product.baseUnit; // Fall back to baseUnit if empty
+    const selectedUnit = e.target.value || product.baseUnit;
     setProduct(prev => ({
       ...prev,
       selectedUnit,
@@ -288,7 +314,7 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
       gstAmount: product.gstAmount,
       sgstAmount: product.sgstAmount,
       totalPrice: product.totalPrice,
-      unit: product.selectedUnit || product.baseUnit, // Fall back to baseUnit if no selection
+      unit: product.selectedUnit || product.baseUnit,
       isManualPrice: product.isManualPrice
     };
 
@@ -300,6 +326,7 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
     }
 
     setProduct(initialProduct);
+    setNameSuggestions([]);
     searchProductInputRef.current?.focus();
   };
 
@@ -308,7 +335,7 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
     setProduct({
       ...productToEdit,
       quantity: productToEdit.quantity.toString(),
-      selectedUnit: productToEdit.unit // Set the unit from the edited product
+      selectedUnit: productToEdit.unit
     });
     setEditingIndex(index);
     productCodeInputRef.current?.focus();
@@ -316,6 +343,12 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
 
   const handleRemove = (index) => {
     onRemove(index);
+  };
+
+  const handleSelectNameSuggestion = (suggestion) => {
+    fetchProductDetails(suggestion.productName, false);
+    setNameSuggestions([]);
+    setShowNameSuggestions(false);
   };
 
   const filteredProducts = products.filter(
@@ -342,7 +375,7 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
               </div>
               <input
                 type="text"
-                placeholder="Search products..."
+                placeholder="Search products by code..."
                 className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -390,20 +423,37 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
                 ref={productCodeInputRef}
                 className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
                 required
-                autoFocus
               />
             </div>
 
-            {/* Product Name */}
-            <div className="col-span-1">
+            {/* Product Name with Suggestions */}
+            <div className="col-span-1 relative">
               <label className="block text-xs font-medium text-gray-700 mb-1">Name</label>
               <input
                 type="text"
                 name="name"
                 value={product.name}
-                readOnly
-                className="w-full px-3 py-2 text-sm border bg-gray-100 rounded-lg"
+                onChange={handleNameChange}
+                onFocus={() => setShowNameSuggestions(true)}
+                onBlur={() => setTimeout(() => setShowNameSuggestions(false), 200)}
+                ref={productNameInputRef}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
               />
+              {showNameSuggestions && nameSuggestions.length > 0 && (
+                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto">
+                  {nameSuggestions.map((item, index) => (
+                    <div
+                      key={index}
+                      className="px-4 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100"
+                      onClick={() => handleSelectNameSuggestion(item)}
+                    >
+                      <div className="font-medium">{item.productName}</div>
+                      {/* <div className="text-sm text-gray-600">{item.productCode}</div> */}
+                      {/* <div className="text-sm text-gray-500">₹{item.mrpPrice?.toFixed(2)}</div> */}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Unit Selection */}
