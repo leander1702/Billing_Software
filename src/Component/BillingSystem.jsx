@@ -5,6 +5,8 @@ import CustomerDetails from './CustomerDetails';
 import BillSummary from './BillSummary';
 import PaymentModal from './PaymentModal';
 import { toast } from 'react-toastify';
+import CashierDetails from './CashierDetails';
+import Api from '../services/api';
 
 const BillingSystem = ({
   onFocusProductSearch,
@@ -85,13 +87,15 @@ const BillingSystem = ({
         // This is correct: Set the outstanding credit from the fetched customer data
         setCustomerOutstandingCredit(existingCustomer.outstandingCredit || 0);
       }
-    } catch (error) {
-      console.error('Error checking customer:', error);
+    } else {
+      // Non-Axios error
+      console.error('Error:', error.message);
       toast.error('Error checking customer. Please try again.');
-    } finally {
-      setIsCheckingCustomer(false);
     }
-  };
+  } finally {
+    setIsCheckingCustomer(false);
+  }
+};
 
   const handleAddProduct = (product) => {
     setProducts([...products, product]);
@@ -170,6 +174,7 @@ const BillingSystem = ({
     });
     setShowPaymentModal(true);
   };
+
 
   const handlePaymentComplete = async (paymentDetails) => {
     setIsSaving(true);
@@ -265,7 +270,10 @@ const BillingSystem = ({
     } finally {
       setIsSaving(false);
     }
-  };
+  } finally {
+    setIsSaving(false);
+  }
+};
 
   const handleFinalClose = () => {
     setShowPaymentModal(false);

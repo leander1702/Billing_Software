@@ -7,6 +7,10 @@ function BillSummary({
   grandTotal, // Total (current bill + previous outstanding credit)
   onProceedToPayment,
   onPrint,
+  isHeld,
+  onHoldToggle,
+  heldBillExists,
+  onTriggerHold,
   onTriggerPrint,
   onTriggerPayment
 }) {
@@ -24,7 +28,6 @@ function BillSummary({
   useEffect(() => {
     if (onTriggerPrint) onTriggerPrint.current = triggerPrint;
     if (onTriggerPayment) onTriggerPayment.current = triggerPayment;
-  }, [onTriggerPrint, onTriggerPayment, triggerPrint, triggerPayment]);
 
   // Calculations for display purposes in summary (these should ideally be consistent
   // with how BillingSystem calculates them, ensuring no re-calculation errors)
@@ -41,7 +44,48 @@ function BillSummary({
       },
       0
     );
+  }, [onTriggerHold, onTriggerPrint, onTriggerPayment, triggerHold, triggerPrint, triggerPayment]);
 
+  const calculateSubtotal = () =>
+    products.reduce((sum, item) => {
+      const baseAmount = (item.basicPrice * item.quantity);
+      return sum + (baseAmount );
+    }, 0);
+
+  const calculateGST = () =>
+    products.reduce((sum, item) => {
+     const baseAmount =  (item.gstAmount * item.quantity);
+      // const gstAmount = (baseAmount * (item.gst*item.quantity)) / 100;
+       return sum + (baseAmount );
+    }, 0);
+
+     const calculateSGST = () =>
+    products.reduce((sum, item) => {
+     const baseAmount =(item.sgstAmount * item.quantity);
+      // const gstAmount = (baseAmount * (item.gst*item.quantity)) / 100;
+       return sum + (baseAmount );
+    }, 0);
+
+  const calculateTotal = () => calculateSubtotal() + (calculateGST() + calculateSGST());
+
+  let holdButtonText = 'Hold';
+  let isHoldButtonDisabled = false;
+
+  if (isHeld) {
+    holdButtonText = 'Hold';
+    isHoldButtonDisabled = products.length === 0;
+  } else {
+    if (products.length > 0) {
+      holdButtonText = 'Hold';
+      isHoldButtonDisabled = false;
+    } else if (heldBillExists) {
+      holdButtonText = 'Unhold';
+      isHoldButtonDisabled = false;
+    } else {
+      holdButtonText = 'Hold';
+      isHoldButtonDisabled = true;
+    }
+  }
 
   return (
     <div className="bg-white p-3 border border-gray-200 rounded-sm sticky">
@@ -79,6 +123,12 @@ function BillSummary({
             </div>
           )}
 
+           <div className="flex justify-between text-sm mb-1">
+            <span className="text-gray-600">SGST:</span>
+            <span className="font-medium">
+              ₹{products.length ? calculateSGST().toFixed(2) : '0.00'}
+            </span>
+          </div>
           <div className="flex justify-between border-t border-gray-200 pt-2 mt-1 text-sm">
             <span className="font-semibold">Grand Total Payable:</span>
             <span className="font-semibold text-xl text-blue-700">
@@ -87,7 +137,6 @@ function BillSummary({
           </div>
         </div>
 
-        {/* Button Row */}
         <div className="flex gap-2 pt-3">
           <button
             onClick={onPrint}

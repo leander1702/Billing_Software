@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import Api from '../services/api';
 
 const Sales = () => {
     const [bills, setBills] = useState([]);
@@ -23,29 +24,23 @@ const Sales = () => {
         year: 0,
     });
 
-    useEffect(() => {
-        // console.log("Fetching bills..."); // Debugging: Confirm useEffect runs
-        fetch('http://localhost:5000/api/bills')
-            .then(res => {
-                if (!res.ok) {
-                    throw new Error(`HTTP error! status: ${res.status}`);
-                }
-                return res.json();
-            })
-            .then(data => {
-                // console.log("Bills fetched:", data); // Debugging: See fetched data
-                setBills(data);
-                setIsLoading(false);
-                calculateSalesData(data);
-                calculateTotalTransactionAmounts(data);
-            })
-            .catch(err => {
-                console.error('Error fetching bills:', err);
-                setIsLoading(false);
-                // Optionally set bills to an empty array or display an error message in UI
-                setBills([]);
-            });
-    }, []);
+  useEffect(() => {
+    // console.log("Fetching bills..."); // Debugging: Confirm useEffect runs
+    Api.get('/bills')
+        .then(response => {
+            const data = response.data;
+            // console.log("Bills fetched:", data); // Debugging: See fetched data
+            setBills(data);
+            setIsLoading(false);
+            calculateSalesData(data);
+            calculateTotalTransactionAmounts(data);
+        })
+        .catch(err => {
+            console.error('Error fetching bills:', err);
+            setIsLoading(false);
+            setBills([]); // Fallback to empty array on error
+        });
+}, []);
 
     useEffect(() => {
         // console.log("Customer period or bills changed. Filtering bills..."); // Debugging filter effect

@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import logo from '../../src/assets/ATS LOGO BLUE.svg';
 import bill from '../../src/assets/IMG1.svg';
+import Api from '../services/api';
 
 const UserLogin = () => {
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -11,6 +11,23 @@ const UserLogin = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
+
+  useEffect(() => {
+    // Cleanup function to remove event listener
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, []);
+
+  const handleBeforeUnload = () => {
+    const userData = localStorage.getItem('loggedInUser');
+    if (userData) {
+      const { rememberMe } = JSON.parse(userData);
+      if (!rememberMe) {
+        localStorage.removeItem('loggedInUser');
+      }
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -24,21 +41,27 @@ const UserLogin = () => {
     }
 
     try {
-      // Change the API endpoint to '/users' for cashier login
-      const res = await axios.get("http://localhost:5000/api/credentials/users");
-
-      // Assuming the '/users' endpoint returns an array of user objects
+      const res = await Api.get("/credentials/users");
       const usersData = res.data; 
       
-      // Find the user with matching credentials
       const foundUser = usersData.find(
         (user) => user.contactNumber === phoneNumber && user.password === password
       );
 
       if (foundUser) {
-        console.log("Login success", foundUser);
-        // You might want to store user data in local storage or context here
-        // For now, navigating to the home page
+        const userData = {
+          ...foundUser,
+          rememberMe,
+          loginTime: new Date().getTime()
+        };
+        
+        localStorage.setItem('loggedInUser', JSON.stringify(userData));
+        
+        // Add event listener for tab close
+        if (!rememberMe) {
+          window.addEventListener('beforeunload', handleBeforeUnload);
+        }
+        
         navigate("/"); 
       } else {
         setError("Invalid phone number or password");
