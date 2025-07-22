@@ -99,7 +99,7 @@ function BillSummary({
             }`}
             ref={printButtonRef}
           >
-            Print
+            Save & Print
           </button>
           <button
             onClick={onProceedToPayment}

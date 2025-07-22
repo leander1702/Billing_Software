@@ -5,7 +5,7 @@ const PaymentModal = ({ currentBillData, onClose, onComplete, isSaving }) => {
   const {
     customer = {},
     currentBillTotal = 0, // Amount of the *new* bill being generated (can be 0 if no new bill)
-    previousOutstandingCredit = 0, // This represents general credit, if applicable
+    // previousOutstandingCredit is now primarily for display/information, not calculation of grandTotal
     billNumber: newBillNumber = '' // The bill number for the *new* bill
   } = currentBillData || {};
 
@@ -18,10 +18,11 @@ const PaymentModal = ({ currentBillData, onClose, onComplete, isSaving }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedBills, setSelectedBills] = useState([]); // Stores _id of selected unpaid bills
 
-  // New state for the user-entered partial amount for outstanding bills
-  const [partialOutstandingPayment, setPartialOutstandingPayment] = useState(0);
+  // State for the user-entered amount for outstanding bills
+  // This defaults to the sum of selected bills' unpaid amounts, but can be manually reduced.
+  const [userEnteredOutstandingPayment, setUserEnteredOutstandingPayment] = useState(0);
 
-  // Calculate the total actual outstanding amount for all selected bills (read-only)
+  // Calculate the total actual outstanding amount for all selected bills (read-only, max limit)
   const actualSelectedOutstandingTotal = useMemo(() => {
     return unpaidBills.reduce((sum, bill) => {
       if (selectedBills.includes(bill._id)) {
@@ -31,33 +32,22 @@ const PaymentModal = ({ currentBillData, onClose, onComplete, isSaving }) => {
     }, 0);
   }, [unpaidBills, selectedBills]);
 
-  // Calculate the grand total based on current bill + user-entered partial outstanding amount
+  // Effect to update userEnteredOutstandingPayment when selected bills change
+  useEffect(() => {
+    // When selected bills change, default the user-entered amount to the full selected outstanding total.
+    // The user can then reduce this amount if they only want to partially pay the selected outstanding.
+    setUserEnteredOutstandingPayment(actualSelectedOutstandingTotal);
+  }, [actualSelectedOutstandingTotal]); // Depend on the calculated total of selected outstanding bills
+
+  // Calculate the grand total based on current bill + user-entered amount for outstanding
   const calculatedGrandTotal = useMemo(() => {
-    // If there's a current bill, add its total. Otherwise, it's just the selected outstanding.
     const totalCurrentBill = currentBillTotal || 0;
-    const totalSelectedOutstanding = parseFloat(partialOutstandingPayment) || 0;
+    const totalSelectedOutstanding = parseInt(userEnteredOutstandingPayment) || 0; // Use parseInt for integer
     return totalCurrentBill + totalSelectedOutstanding;
-  }, [currentBillTotal, partialOutstandingPayment]);
+  }, [currentBillTotal, userEnteredOutstandingPayment]); // Depends on userEnteredOutstandingPayment
 
-  // Effect to initialize amountPaid and partialOutstandingPayment
+  // Effect to initialize amountPaid to calculatedGrandTotal
   useEffect(() => {
-    // When selectedBills change or actual outstanding changes, update partialOutstandingPayment
-    // and then update amountPaid
-    // Only set partialOutstandingPayment if no new bill is present, or if it's the initial load.
-    // This prevents resetting user input if they are typing a partial amount.
-    if ((currentBillTotal || 0) === 0 || partialOutstandingPayment === 0) {
-        setPartialOutstandingPayment(actualSelectedOutstandingTotal);
-    }
-  }, [actualSelectedOutstandingTotal, currentBillTotal]);
-
-
-  useEffect(() => {
-    // Only update amountPaid when calculatedGrandTotal changes (e.g., selection changes, or partial amount input changes)
-    // and if the user hasn't manually overridden it.
-    // A simple way to handle this is to set it initially, but let user override.
-    // If you want it to always follow calculatedGrandTotal unless specifically overridden,
-    // you might need another state variable to track user override.
-    // For now, let's keep it simple: it defaults to grand total.
     setAmountPaid(calculatedGrandTotal);
   }, [calculatedGrandTotal]);
 
@@ -68,6 +58,7 @@ const PaymentModal = ({ currentBillData, onClose, onComplete, isSaving }) => {
     setRemainingUnpaid(Math.max(0, -calculatedChange));
   }, [amountPaid, calculatedGrandTotal]);
 
+  // Effect to fetch unpaid bills when customer ID is available
   useEffect(() => {
     if (customer?.id) {
       fetchUnpaidBills();
@@ -80,6 +71,7 @@ const PaymentModal = ({ currentBillData, onClose, onComplete, isSaving }) => {
       const response = await fetch(`http://localhost:5000/api/bills/unpaid?customerId=${customer.id}`);
       if (!response.ok) throw new Error('Failed to fetch unpaid bills');
       const data = await response.json();
+      // Filter to ensure only bills with actual unpaid amounts are shown
       setUnpaidBills(Array.isArray(data) ? data.filter(bill => (bill.unpaidAmountForThisBill || 0) > 0) : []);
     } catch (error) {
       console.error('Error fetching unpaid bills:', error);
@@ -109,31 +101,32 @@ const PaymentModal = ({ currentBillData, onClose, onComplete, isSaving }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (isSaving) return;
+    if (isSaving) return; // Prevent multiple submissions
+
+    // Basic validations
     if (amountPaid < 0) {
       toast.error('Payment amount cannot be negative');
       return;
     }
-    if (partialOutstandingPayment > actualSelectedOutstandingTotal) {
+    if (userEnteredOutstandingPayment > actualSelectedOutstandingTotal) {
       toast.error(`Amount for outstanding bills cannot exceed ${formatCurrency(actualSelectedOutstandingTotal)}`);
       return;
     }
-     if (partialOutstandingPayment < 0) {
-        toast.error('Partial outstanding payment cannot be negative');
-        return;
+    if (userEnteredOutstandingPayment < 0) {
+      toast.error('Outstanding payment cannot be negative');
+      return;
     }
-
 
     let paymentForCurrentBill = 0;
     let paymentForOutstandingBills = 0;
-    let remainingPayment = amountPaid;
+    let remainingPayment = amountPaid; // Total amount customer is paying
 
     // Determine if there's a new bill being paid for
     const isNewBillPresent = (currentBillTotal || 0) > 0;
 
     if (isNewBillPresent) {
       // Scenario 1: New Bill Payment + Optional Outstanding Payments
-      // 1. Pay for the current bill first
+      // 1. Prioritize payment for the current bill
       if (remainingPayment >= currentBillTotal) {
         paymentForCurrentBill = currentBillTotal;
         remainingPayment -= currentBillTotal;
@@ -142,23 +135,21 @@ const PaymentModal = ({ currentBillData, onClose, onComplete, isSaving }) => {
         remainingPayment = 0;
       }
 
-      // 2. Then, allocate payment to selected outstanding bills, up to `partialOutstandingPayment`
-      // It's important that partialOutstandingPayment is the *user-entered intent* for outstanding.
-      // The actual amount applied will be min(remainingPayment, partialOutstandingPayment).
-      paymentForOutstandingBills = Math.min(remainingPayment, parseFloat(partialOutstandingPayment) || 0);
-      remainingPayment -= paymentForOutstandingBills;
-
+      // 2. Then, allocate remaining payment to selected outstanding bills, up to userEnteredOutstandingPayment
+      paymentForOutstandingBills = Math.min(remainingPayment, parseInt(userEnteredOutstandingPayment) || 0); // Use parseInt
+      remainingPayment -= paymentForOutstandingBills; // Update remaining payment after allocating to outstanding
     } else {
       // Scenario 2: Outstanding Bill Payment ONLY (no new bill)
-      // All payment goes towards selected outstanding bills
+      // All payment goes towards selected outstanding bills, up to userEnteredOutstandingPayment
       paymentForCurrentBill = 0; // No new bill to pay for
-      paymentForOutstandingBills = Math.min(remainingPayment, parseFloat(partialOutstandingPayment) || 0);
-      remainingPayment -= paymentForOutstandingBills;
+      paymentForOutstandingBills = Math.min(remainingPayment, parseInt(userEnteredOutstandingPayment) || 0); // Use parseInt
+      remainingPayment -= paymentForOutstandingBills; // Update remaining payment
     }
 
+    // Call the onComplete callback with all necessary payment details
     onComplete({
       method: paymentMethod,
-      amountPaid: parseFloat(amountPaid),
+      amountPaid: parseInt(amountPaid), // Use parseInt for integer
       transactionId: transactionId.trim() || undefined,
       isNewBillPayment: isNewBillPresent, // Indicate if a new bill is part of this transaction
       currentBillPayment: paymentForCurrentBill, // Amount applied to the current (new) bill
@@ -174,7 +165,7 @@ const PaymentModal = ({ currentBillData, onClose, onComplete, isSaving }) => {
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
       currency: 'INR',
-      minimumFractionDigits: 2
+      // Removed minimumFractionDigits: 2 to display as integer
     }).format(amount);
   };
 
@@ -206,7 +197,6 @@ const PaymentModal = ({ currentBillData, onClose, onComplete, isSaving }) => {
   // Determine the display bill number based on whether it's a new bill or just outstanding payment
   const displayBillNumber = (currentBillTotal || 0) > 0 ? newBillNumber : 'N/A (Outstanding Settlement)';
 
-
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
       <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -218,7 +208,7 @@ const PaymentModal = ({ currentBillData, onClose, onComplete, isSaving }) => {
         </div>
 
         {/* Customer Info */}
-        <div className="bg-gray-50 p-4 rounded-lg mb-6">
+        <div className="bg-gray-50 p-4 rounded-lg mb-6 rounded-lg">
           <h3 className="font-semibold text-gray-800 mb-2">Customer Details</h3>
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -253,7 +243,7 @@ const PaymentModal = ({ currentBillData, onClose, onComplete, isSaving }) => {
               <button
                 type="button"
                 onClick={handleSelectAllBills}
-                className="px-4 py-2 text-sm font-medium text-blue-700 bg-blue-100 rounded-md hover:bg-blue-200"
+                className="px-4 py-2 text-sm font-medium text-blue-700 bg-blue-100 rounded-md hover:bg-blue-200 rounded-lg"
               >
                 {selectedBills.length === unpaidBills.length ? 'Deselect All' : 'Select All'}
               </button>
@@ -283,22 +273,22 @@ const PaymentModal = ({ currentBillData, onClose, onComplete, isSaving }) => {
                       />
                       <div>
                         <h4 className="font-medium">Bill #: {bill.billNumber}</h4>
-                        <p className="text-sm text-gray-500">{formatDateTime(bill.date)}</p> {/* Using formatDateTime here */}
+                        <p className="text-sm text-gray-500">{formatDateTime(bill.date)}</p>
                       </div>
                     </div>
                     {getStatusBadge(bill.status)}
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm mb-3">
-                    <div className="bg-gray-50 p-2 rounded">
+                    <div className="bg-gray-50 p-2 rounded-lg">
                       <p className="text-gray-600">Bill Total:</p>
-                      <p className="font-medium">{formatCurrency(bill.currentBillTotal)}</p> {/* This represents the grand total for the outstanding bill */}
+                      <p className="font-medium">{formatCurrency(bill.currentBillTotal)}</p>
                     </div>
-                    <div className="bg-blue-50 p-2 rounded">
+                    <div className="bg-blue-50 p-2 rounded-lg">
                       <p className="text-gray-600">Paid Amount:</p>
                       <p className="font-medium text-green-600">{formatCurrency(bill.paidAmount || 0)}</p>
                     </div>
-                    <div className="bg-red-50 p-2 rounded">
+                    <div className="bg-red-50 p-2 rounded-lg">
                       <p className="text-gray-600">Unpaid Amount:</p>
                       <p className="font-medium text-red-600">{formatCurrency(bill.unpaidAmountForThisBill || 0)}</p>
                     </div>
@@ -320,7 +310,7 @@ const PaymentModal = ({ currentBillData, onClose, onComplete, isSaving }) => {
                               </th>
                               <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 Qty & Unit
-                              </th> {/* Updated header */}
+                              </th>
                               <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 MRP
                               </th>
@@ -331,7 +321,6 @@ const PaymentModal = ({ currentBillData, onClose, onComplete, isSaving }) => {
                               <tr key={pIndex}>
                                 <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">{product.name}</td>
                                 <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">{formatCurrency(product.price)}</td>
-                                {/* Display Quantity and Unit */}
                                 <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">{product.quantity} {product.unit}</td>
                                 <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">{formatCurrency(product.mrpPrice || product.price)}</td>
                               </tr>
@@ -348,7 +337,7 @@ const PaymentModal = ({ currentBillData, onClose, onComplete, isSaving }) => {
         </div>
 
         {/* Payment Summary */}
-        <div className="bg-blue-50 p-4 rounded-lg mb-6">
+        <div className="bg-blue-50 p-4 rounded-lg mb-6 rounded-lg">
           <h3 className="font-semibold text-gray-800 mb-3">Payment Summary</h3>
           <div className="space-y-2">
             {/* Show Current Purchase Bill Total only if a new bill is present */}
@@ -360,18 +349,18 @@ const PaymentModal = ({ currentBillData, onClose, onComplete, isSaving }) => {
             )}
             {selectedBills.length > 0 && (
               <div className="flex justify-between items-center">
-                <label htmlFor="partialOutstandingInput" className="text-sm font-medium text-gray-700">
-                  Selected Outstanding Amount:
+                <label htmlFor="userEnteredOutstandingPaymentInput" className="text-sm font-medium text-gray-700">
+                  Amount for Selected Outstanding Bills:
                 </label>
                 <input
-                  id="partialOutstandingInput"
+                  id="userEnteredOutstandingPaymentInput"
                   type="number"
-                  value={partialOutstandingPayment}
-                  onChange={(e) => setPartialOutstandingPayment(Math.max(0, parseFloat(e.target.value) || 0))}
-                  className="w-40 border border-gray-300 rounded-md shadow-sm py-1 px-2 text-right focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  step="0.01"
+                  value={userEnteredOutstandingPayment}
+                  onChange={(e) => setUserEnteredOutstandingPayment(Math.max(0, parseInt(e.target.value) || 0))} // Use parseInt
+                  className="w-40 border border-gray-300 rounded-md shadow-sm py-1 px-2 text-right focus:outline-none focus:ring-blue-500 focus:border-blue-500 rounded-lg"
+                  step="1" // Changed to step="1"
                   min="0"
-                  max={actualSelectedOutstandingTotal}
+                  max={actualSelectedOutstandingTotal} // Max value is the actual total of selected outstanding bills
                 />
               </div>
             )}
@@ -393,7 +382,7 @@ const PaymentModal = ({ currentBillData, onClose, onComplete, isSaving }) => {
               <select
                 value={paymentMethod}
                 onChange={(e) => setPaymentMethod(e.target.value)}
-                className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 rounded-lg"
                 required
               >
                 <option value="cash">Cash</option>
@@ -409,9 +398,9 @@ const PaymentModal = ({ currentBillData, onClose, onComplete, isSaving }) => {
               <input
                 type="number"
                 value={amountPaid}
-                onChange={(e) => setAmountPaid(Math.max(0, parseFloat(e.target.value) || 0))}
-                className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 text-right focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                step="0.01"
+                onChange={(e) => setAmountPaid(Math.max(0, parseInt(e.target.value) || 0))} // Use parseInt
+                className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 text-right focus:outline-none focus:ring-blue-500 focus:border-blue-500 rounded-lg"
+                step="1" // Changed to step="1"
                 min="0"
                 required
               />
@@ -427,7 +416,7 @@ const PaymentModal = ({ currentBillData, onClose, onComplete, isSaving }) => {
                 type="text"
                 value={transactionId}
                 onChange={(e) => setTransactionId(e.target.value)}
-                className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 rounded-lg"
                 placeholder="Enter reference number"
               />
             </div>
@@ -458,7 +447,7 @@ const PaymentModal = ({ currentBillData, onClose, onComplete, isSaving }) => {
             <button
               type="button"
               onClick={onClose}
-              className="px-6 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+              className="px-6 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 rounded-lg"
               disabled={isSaving}
             >
               Cancel
@@ -467,7 +456,7 @@ const PaymentModal = ({ currentBillData, onClose, onComplete, isSaving }) => {
               type="submit"
               className={`px-6 py-2 text-sm font-medium text-white rounded-md shadow-sm ${
                 isSaving ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
-              } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
+              } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 rounded-lg`}
               disabled={isSaving}
             >
               {isSaving ? 'Processing...' : 'Complete Payment'}
