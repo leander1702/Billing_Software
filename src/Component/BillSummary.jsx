@@ -1,8 +1,10 @@
 import React, { useEffect, useRef, useCallback } from 'react';
 
 function BillSummary({
-  customer,
   products,
+  customerOutstandingCredit = 0, // This is previous unpaid amount
+  currentBillTotal, // Total for items in *this* bill
+  grandTotal, // Total (current bill + previous outstanding credit)
   onProceedToPayment,
   onPrint,
   isHeld,
@@ -12,13 +14,8 @@ function BillSummary({
   onTriggerPrint,
   onTriggerPayment
 }) {
-  const holdButtonRef = useRef(null);
   const printButtonRef = useRef(null);
   const paymentButtonRef = useRef(null);
-
-  const triggerHold = useCallback(() => {
-    holdButtonRef.current?.click();
-  }, []);
 
   const triggerPrint = useCallback(() => {
     printButtonRef.current?.click();
@@ -29,9 +26,24 @@ function BillSummary({
   }, []);
 
   useEffect(() => {
-    if (onTriggerHold) onTriggerHold.current = triggerHold;
     if (onTriggerPrint) onTriggerPrint.current = triggerPrint;
     if (onTriggerPayment) onTriggerPayment.current = triggerPayment;
+
+  // Calculations for display purposes in summary (these should ideally be consistent
+  // with how BillingSystem calculates them, ensuring no re-calculation errors)
+  const calculateProductsSubtotalDisplay = () =>
+    products.reduce((sum, item) => (item.price * item.quantity) || 0, 0);
+
+  const calculateProductsGstDisplay = () =>
+    products.reduce(
+      (sum, item) => {
+        const base = (item.price * item.quantity) || 0;
+        const discountAmount = base * (item.discount / 100 || 0);
+        const priceAfterDiscount = base - discountAmount;
+        return sum + (priceAfterDiscount * (item.gst / 100 || 0));
+      },
+      0
+    );
   }, [onTriggerHold, onTriggerPrint, onTriggerPayment, triggerHold, triggerPrint, triggerPayment]);
 
   const calculateSubtotal = () =>
@@ -76,23 +88,41 @@ function BillSummary({
   }
 
   return (
-    <div className="bg-white p-3 border border-gray-200 rounded-sm sticky ">
+    <div className="bg-white p-3 border border-gray-200 rounded-sm sticky">
       <h2 className="text-sm font-semibold mb-2">Bill Summary</h2>
 
       <div className="space-y-2">
         <div className="border-t border-gray-200 pt-2">
           <div className="flex justify-between text-sm mb-1">
-            <span className="text-gray-600">Subtotal:</span>
+            <span className="text-gray-600">Products Subtotal:</span>
             <span className="font-medium">
-              ₹{products.length ? calculateSubtotal().toFixed(2) : '0.00'}
+              ₹{calculateProductsSubtotalDisplay().toFixed(2)}
             </span>
           </div>
+
           <div className="flex justify-between text-sm mb-1">
-            <span className="text-gray-600">GST:</span>
+            <span className="text-gray-600">Products GST:</span>
             <span className="font-medium">
-              ₹{products.length ? calculateGST().toFixed(2) : '0.00'}
+              ₹{calculateProductsGstDisplay().toFixed(2)}
             </span>
           </div>
+
+          <div className="flex justify-between text-sm font-semibold border-b border-gray-200 pb-1 mb-1">
+            <span className="text-gray-700">Current Bill Total:</span>
+            <span className="text-base text-gray-800">
+              ₹{currentBillTotal.toFixed(2)}
+            </span>
+          </div>
+
+          {customerOutstandingCredit > 0 && (
+            <div className="flex justify-between text-sm mb-1 text-red-600">
+              <span className="font-medium">Previous Unpaid Amount:</span>
+              <span className="font-medium">
+                ₹{customerOutstandingCredit.toFixed(2)}
+              </span>
+            </div>
+          )}
+
            <div className="flex justify-between text-sm mb-1">
             <span className="text-gray-600">SGST:</span>
             <span className="font-medium">
@@ -100,44 +130,31 @@ function BillSummary({
             </span>
           </div>
           <div className="flex justify-between border-t border-gray-200 pt-2 mt-1 text-sm">
-            <span className="font-semibold">Total:</span>
-            <span className="font-semibold text-base">
-              ₹{products.length ? calculateTotal().toFixed(2) : '0.00'}
+            <span className="font-semibold">Grand Total Payable:</span>
+            <span className="font-semibold text-xl text-blue-700">
+              ₹{grandTotal.toFixed(2)}
             </span>
           </div>
         </div>
 
         <div className="flex gap-2 pt-3">
           <button
-            onClick={onHoldToggle}
-            disabled={isHoldButtonDisabled}
-            className={`flex-1 py-1 text-sm rounded-sm focus:outline-none ${
-              isHoldButtonDisabled
-                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                : (holdButtonText === 'Hold' ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-blue-500 text-white hover:bg-blue-600')
-            }`}
-            ref={holdButtonRef}
-          >
-            {holdButtonText}
-          </button>
-
-          <button
             onClick={onPrint}
-            disabled={!products.length}
+            disabled={products.length === 0 && customerOutstandingCredit === 0}
             className={`flex-1 py-1 text-sm rounded-sm focus:outline-none ${
-              !products.length
+              (products.length === 0 && customerOutstandingCredit === 0)
                 ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 : 'bg-blue-600 text-white hover:bg-blue-700'
             }`}
             ref={printButtonRef}
           >
-            Print
+            Save & Print
           </button>
           <button
             onClick={onProceedToPayment}
-            disabled={!products.length || !customer?.id}
+            disabled={(products.length === 0 && customerOutstandingCredit === 0)} // Allow if only credit is being paid
             className={`flex-1 py-1 text-sm rounded-sm focus:outline-none ${
-              !products.length || !customer?.id
+              (products.length === 0 && customerOutstandingCredit === 0)
                 ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 : 'bg-blue-600 text-white hover:bg-blue-700'
             }`}
