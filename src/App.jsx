@@ -43,17 +43,6 @@ const App = () => {
                 onTriggerPrint={triggerPrintRef}
                 onTriggerPayment={triggerPaymentRef}
               />
-              <Navbar
-                onFocusProductSearch={focusProductSearchRef}
-                onFocusProductCode={focusProductCodeRef}
-                onFocusQuantity={focusQuantityRef}
-                onTriggerAddProduct={triggerAddProductRef}
-                onFocusCustomerName={focusCustomerNameRef}
-                onFocusPhoneNumber={focusPhoneNumberRef}
-                onTriggerHold={triggerHoldRef}
-                onTriggerPrint={triggerPrintRef}
-                onTriggerPayment={triggerPaymentRef}
-              />
             </>
           </AuthWrapper>
         } />
@@ -84,6 +73,19 @@ const App = () => {
             </>
           </AuthWrapper>
         } />
+
+
+        {/* <Navbar
+                onFocusProductSearch={focusProductSearchRef}
+                onFocusProductCode={focusProductCodeRef}
+                onFocusQuantity={focusQuantityRef}
+                onTriggerAddProduct={triggerAddProductRef}
+                onFocusCustomerName={focusCustomerNameRef}
+                onFocusPhoneNumber={focusPhoneNumberRef}
+                onTriggerHold={triggerHoldRef}
+                onTriggerPrint={triggerPrintRef}
+                onTriggerPayment={triggerPaymentRef}
+              /> */}
       </Routes>
     </>
   );

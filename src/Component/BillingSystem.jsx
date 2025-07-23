@@ -45,7 +45,6 @@ const BillingSystem = ({
       customer,
       products,
       productSubtotal: calculateProductsSubtotal(),
-      productGst: calculateProductsGst(),
       currentBillTotal: calculateCurrentBillTotal(),
       previousOutstandingCredit: customerOutstandingCredit,
       grandTotalIncludingPreviousCredit: calculateGrandTotal(),
@@ -87,11 +86,6 @@ const BillingSystem = ({
         // This is correct: Set the outstanding credit from the fetched customer data
         setCustomerOutstandingCredit(existingCustomer.outstandingCredit || 0);
       }
-    } else {
-      // Non-Axios error
-      console.error('Error:', error.message);
-      toast.error('Error checking customer. Please try again.');
-    }
   } finally {
     setIsCheckingCustomer(false);
   }
@@ -113,22 +107,31 @@ const BillingSystem = ({
     setProducts(newProducts);
   };
 
-  const calculateProductsSubtotal = () =>
-    products.reduce((total, product) => (product.price * product.quantity) || 0, 0);
+  const calculateSubtotal = () =>
+    products.reduce((sum, item) => {
+      const baseAmount = (item.basicPrice * item.quantity);
+      return sum + (baseAmount );
+    }, 0);
 
-  const calculateProductsGst = () =>
-    products.reduce(
-      (total, product) => {
-        const base = (product.price * product.quantity) || 0;
-        const discountAmount = base * (product.discount / 100 || 0);
-        const priceAfterDiscount = base - discountAmount;
-        return total + (priceAfterDiscount * (product.gst / 100 || 0));
-      },
-      0
-    );
+  const calculateGST = () =>
+    products.reduce((sum, item) => {
+     const baseAmount =  (item.gstAmount * item.quantity);
+      // const gstAmount = (baseAmount * (item.gst*item.quantity)) / 100;
+       return sum + (baseAmount );
+    }, 0);
+
+     const calculateSGST = () =>
+    products.reduce((sum, item) => {
+     const baseAmount =(item.sgstAmount * item.quantity);
+      // const gstAmount = (baseAmount * (item.gst*item.quantity)) / 100;
+       return sum + (baseAmount );
+    }, 0);
+
+  const calculateProductsSubtotal = () => calculateSubtotal() + (calculateGST() + calculateSGST());
+
 
   const calculateCurrentBillTotal = () => {
-    return calculateProductsSubtotal() + calculateProductsGst();
+    return calculateProductsSubtotal();
   };
 
   const calculateGrandTotal = () => {
@@ -163,7 +166,6 @@ const BillingSystem = ({
       customer,
       products, // Products for the NEW bill
       productSubtotal: calculateProductsSubtotal(),
-      productGst: calculateProductsGst(),
       currentBillTotal: calculateCurrentBillTotal(), // Total for the NEW products
       previousOutstandingCredit: customerOutstandingCredit, // Full outstanding
       grandTotal: calculateGrandTotal(), // Combined total, for display/initial payment amount
@@ -270,10 +272,7 @@ const BillingSystem = ({
     } finally {
       setIsSaving(false);
     }
-  } finally {
-    setIsSaving(false);
-  }
-};
+  };
 
   const handleFinalClose = () => {
     setShowPaymentModal(false);
