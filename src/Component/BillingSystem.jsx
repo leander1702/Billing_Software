@@ -187,8 +187,6 @@ const BillingSystem = ({
     const isNewBillPresent = (currentBill?.currentBillTotal || 0) > 0;
 
     if (isNewBillPresent) {
-      // Scenario 1: New Bill Payment + Optional Outstanding Payments
-      // This goes to your existing POST /api/bills endpoint
       apiUrl = 'http://localhost:5000/api/bills';
       payload = {
         customer: currentBill.customer,
