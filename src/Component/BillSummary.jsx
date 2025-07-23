@@ -7,10 +7,6 @@ function BillSummary({
   grandTotal, // Total (current bill + previous outstanding credit)
   onProceedToPayment,
   onPrint,
-  isHeld,
-  onHoldToggle,
-  heldBillExists,
-  onTriggerHold,
   onTriggerPrint,
   onTriggerPayment
 }) {
@@ -28,23 +24,7 @@ function BillSummary({
   useEffect(() => {
     if (onTriggerPrint) onTriggerPrint.current = triggerPrint;
     if (onTriggerPayment) onTriggerPayment.current = triggerPayment;
-
-  // Calculations for display purposes in summary (these should ideally be consistent
-  // with how BillingSystem calculates them, ensuring no re-calculation errors)
-  const calculateProductsSubtotalDisplay = () =>
-    products.reduce((sum, item) => (item.price * item.quantity) || 0, 0);
-
-  const calculateProductsGstDisplay = () =>
-    products.reduce(
-      (sum, item) => {
-        const base = (item.price * item.quantity) || 0;
-        const discountAmount = base * (item.discount / 100 || 0);
-        const priceAfterDiscount = base - discountAmount;
-        return sum + (priceAfterDiscount * (item.gst / 100 || 0));
-      },
-      0
-    );
-  }, [onTriggerHold, onTriggerPrint, onTriggerPayment, triggerHold, triggerPrint, triggerPayment]);
+  }, [onTriggerPrint, onTriggerPayment, triggerPrint, triggerPayment]);
 
   const calculateSubtotal = () =>
     products.reduce((sum, item) => {
@@ -68,49 +48,35 @@ function BillSummary({
 
   const calculateTotal = () => calculateSubtotal() + (calculateGST() + calculateSGST());
 
-  let holdButtonText = 'Hold';
-  let isHoldButtonDisabled = false;
-
-  if (isHeld) {
-    holdButtonText = 'Hold';
-    isHoldButtonDisabled = products.length === 0;
-  } else {
-    if (products.length > 0) {
-      holdButtonText = 'Hold';
-      isHoldButtonDisabled = false;
-    } else if (heldBillExists) {
-      holdButtonText = 'Unhold';
-      isHoldButtonDisabled = false;
-    } else {
-      holdButtonText = 'Hold';
-      isHoldButtonDisabled = true;
-    }
-  }
 
   return (
     <div className="bg-white p-3 border border-gray-200 rounded-sm sticky">
       <h2 className="text-sm font-semibold mb-2">Bill Summary</h2>
 
-      <div className="space-y-2">
+         <div className="space-y-2">
         <div className="border-t border-gray-200 pt-2">
           <div className="flex justify-between text-sm mb-1">
-            <span className="text-gray-600">Products Subtotal:</span>
+            <span className="text-gray-600">Subtotal:</span>
             <span className="font-medium">
-              ₹{calculateProductsSubtotalDisplay().toFixed(2)}
+              ₹{products.length ? calculateSubtotal().toFixed(2) : '0.00'}
             </span>
           </div>
-
           <div className="flex justify-between text-sm mb-1">
-            <span className="text-gray-600">Products GST:</span>
+            <span className="text-gray-600">GST:</span>
             <span className="font-medium">
-              ₹{calculateProductsGstDisplay().toFixed(2)}
+              ₹{products.length ? calculateGST().toFixed(2) : '0.00'}
             </span>
           </div>
-
-          <div className="flex justify-between text-sm font-semibold border-b border-gray-200 pb-1 mb-1">
-            <span className="text-gray-700">Current Bill Total:</span>
-            <span className="text-base text-gray-800">
-              ₹{currentBillTotal.toFixed(2)}
+           <div className="flex justify-between text-sm mb-1">
+            <span className="text-gray-600">SGST:</span>
+            <span className="font-medium">
+              ₹{products.length ? calculateSGST().toFixed(2) : '0.00'}
+            </span>
+          </div>
+          <div className="flex justify-between border-t border-gray-200 pt-2 mt-1 text-sm">
+            <span className="font-semibold">Total:</span>
+            <span className="font-semibold text-base">
+              ₹{products.length ? calculateTotal().toFixed(2) : '0.00'}
             </span>
           </div>
 
@@ -123,12 +89,13 @@ function BillSummary({
             </div>
           )}
 
-           <div className="flex justify-between text-sm mb-1">
+          {/* <div className="flex justify-between text-sm mb-1">
             <span className="text-gray-600">SGST:</span>
             <span className="font-medium">
               ₹{products.length ? calculateSGST().toFixed(2) : '0.00'}
             </span>
-          </div>
+          </div> */}
+          
           <div className="flex justify-between border-t border-gray-200 pt-2 mt-1 text-sm">
             <span className="font-semibold">Grand Total Payable:</span>
             <span className="font-semibold text-xl text-blue-700">
@@ -152,7 +119,7 @@ function BillSummary({
           </button>
           <button
             onClick={onProceedToPayment}
-            disabled={(products.length === 0 && customerOutstandingCredit === 0)} // Allow if only credit is being paid
+            disabled={(products.length === 0 && customerOutstandingCredit === 0)}
             className={`flex-1 py-1 text-sm rounded-sm focus:outline-none ${
               (products.length === 0 && customerOutstandingCredit === 0)
                 ? 'bg-gray-300 text-gray-500 cursor-not-allowed'

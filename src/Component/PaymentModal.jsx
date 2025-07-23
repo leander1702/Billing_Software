@@ -208,7 +208,7 @@ const PaymentModal = ({ currentBillData, onClose, onComplete, isSaving }) => {
         </div>
 
         {/* Customer Info */}
-        <div className="bg-gray-50 p-4 rounded-lg mb-6 rounded-lg">
+        <div className="bg-gray-50 p-4 rounded-lg mb-6">
           <h3 className="font-semibold text-gray-800 mb-2">Customer Details</h3>
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -243,7 +243,7 @@ const PaymentModal = ({ currentBillData, onClose, onComplete, isSaving }) => {
               <button
                 type="button"
                 onClick={handleSelectAllBills}
-                className="px-4 py-2 text-sm font-medium text-blue-700 bg-blue-100 rounded-md hover:bg-blue-200 rounded-lg"
+                className="px-4 py-2 text-sm font-medium text-blue-700 bg-blue-100 rounded-md hover:bg-blue-200"
               >
                 {selectedBills.length === unpaidBills.length ? 'Deselect All' : 'Select All'}
               </button>
@@ -337,7 +337,7 @@ const PaymentModal = ({ currentBillData, onClose, onComplete, isSaving }) => {
         </div>
 
         {/* Payment Summary */}
-        <div className="bg-blue-50 p-4 rounded-lg mb-6 rounded-lg">
+        <div className="bg-blue-50 p-4  mb-6 rounded-lg">
           <h3 className="font-semibold text-gray-800 mb-3">Payment Summary</h3>
           <div className="space-y-2">
             {/* Show Current Purchase Bill Total only if a new bill is present */}
@@ -357,7 +357,7 @@ const PaymentModal = ({ currentBillData, onClose, onComplete, isSaving }) => {
                   type="number"
                   value={userEnteredOutstandingPayment}
                   onChange={(e) => setUserEnteredOutstandingPayment(Math.max(0, parseInt(e.target.value) || 0))} // Use parseInt
-                  className="w-40 border border-gray-300 rounded-md shadow-sm py-1 px-2 text-right focus:outline-none focus:ring-blue-500 focus:border-blue-500 rounded-lg"
+                  className="w-40 border border-gray-300 rounded-md shadow-sm py-1 px-2 text-right focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   step="1" // Changed to step="1"
                   min="0"
                   max={actualSelectedOutstandingTotal} // Max value is the actual total of selected outstanding bills
@@ -382,7 +382,7 @@ const PaymentModal = ({ currentBillData, onClose, onComplete, isSaving }) => {
               <select
                 value={paymentMethod}
                 onChange={(e) => setPaymentMethod(e.target.value)}
-                className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 rounded-lg"
+                className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 "
                 required
               >
                 <option value="cash">Cash</option>
@@ -399,7 +399,8 @@ const PaymentModal = ({ currentBillData, onClose, onComplete, isSaving }) => {
                 type="number"
                 value={amountPaid}
                 onChange={(e) => setAmountPaid(Math.max(0, parseInt(e.target.value) || 0))} // Use parseInt
-                className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 text-right focus:outline-none focus:ring-blue-500 focus:border-blue-500 rounded-lg"
+                className="w-full border border-gray-300 rounded-md shadow-sm 
+                py-2 px-3 text-right focus:outline-none focus:ring-blue-500 focus:border-blue-500 "
                 step="1" // Changed to step="1"
                 min="0"
                 required
@@ -416,7 +417,8 @@ const PaymentModal = ({ currentBillData, onClose, onComplete, isSaving }) => {
                 type="text"
                 value={transactionId}
                 onChange={(e) => setTransactionId(e.target.value)}
-                className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 rounded-lg"
+                className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 
+                focus:outline-none focus:ring-blue-500 focus:border-blue-500 "
                 placeholder="Enter reference number"
               />
             </div>
@@ -447,7 +449,8 @@ const PaymentModal = ({ currentBillData, onClose, onComplete, isSaving }) => {
             <button
               type="button"
               onClick={onClose}
-              className="px-6 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 rounded-lg"
+              className="px-6 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md
+               hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
               disabled={isSaving}
             >
               Cancel

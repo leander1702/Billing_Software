@@ -24,7 +24,7 @@ const App = () => {
 
   return (
     <>
-      <ToastContainer />
+      {/* <ToastContainer /> */}
       <Routes>
         <Route path='/login' element={<UserLogin />} />
         
@@ -33,17 +33,6 @@ const App = () => {
             <>
               <Header />
               <BillingSystem
-                onFocusProductSearch={focusProductSearchRef}
-                onFocusProductCode={focusProductCodeRef}
-                onFocusQuantity={focusQuantityRef}
-                onTriggerAddProduct={triggerAddProductRef}
-                onFocusCustomerName={focusCustomerNameRef}
-                onFocusPhoneNumber={focusPhoneNumberRef}
-                onTriggerHold={triggerHoldRef}
-                onTriggerPrint={triggerPrintRef}
-                onTriggerPayment={triggerPaymentRef}
-              />
-              <Navbar
                 onFocusProductSearch={focusProductSearchRef}
                 onFocusProductCode={focusProductCodeRef}
                 onFocusQuantity={focusQuantityRef}
@@ -84,6 +73,19 @@ const App = () => {
             </>
           </AuthWrapper>
         } />
+
+
+        {/* <Navbar
+                onFocusProductSearch={focusProductSearchRef}
+                onFocusProductCode={focusProductCodeRef}
+                onFocusQuantity={focusQuantityRef}
+                onTriggerAddProduct={triggerAddProductRef}
+                onFocusCustomerName={focusCustomerNameRef}
+                onFocusPhoneNumber={focusPhoneNumberRef}
+                onTriggerHold={triggerHoldRef}
+                onTriggerPrint={triggerPrintRef}
+                onTriggerPayment={triggerPaymentRef}
+              /> */}
       </Routes>
     </>
   );
