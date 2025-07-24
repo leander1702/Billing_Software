@@ -3,6 +3,7 @@ import '../App.css';
 import { toast } from 'react-toastify';
 import { FiEdit2, FiTrash2, FiSearch, FiPlus, FiRefreshCw } from 'react-icons/fi';
 import Api from '../services/api';
+import Swal from 'sweetalert2';
 
 function ProductList({ products, onAdd, onEdit, onRemove }) {
   const initialProduct = {
@@ -291,44 +292,81 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
     }));
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
+// Add this function to check stock before adding product
+const checkStockAvailability = async (productName, quantity, unit) => {
+  try {
+    const product = await Api.get(`/products/name/${productName}`);
+    if (!product.data) return { isAvailable: false, available: 0 };
 
-    if (!product.code || !product.quantity) {
-      toast.error("Product code and quantity are required!");
-      return;
-    }
+    const response = await Api.get(`/products/check-stock/${product.data.productCode}`, {
+      params: { unit, quantity }
+    });
 
-    const quantityValue = parseFloat(product.quantity);
-    if (isNaN(quantityValue)) {
-      toast.error("Please enter a valid quantity!");
-      return;
-    }
+    return response.data;
+  } catch (err) {
+    console.error('Error checking stock:', err);
+    return { isAvailable: false, available: 0 };
+  }
+};
 
-    const newProduct = {
-      ...product,
-      id: Date.now(),
-      quantity: quantityValue,
-      price: parseFloat(product.price),
-      basicPrice: product.basicPrice,
-      gstAmount: product.gstAmount,
-      sgstAmount: product.sgstAmount,
-      totalPrice: product.totalPrice,
-      unit: product.selectedUnit || product.baseUnit,
-      isManualPrice: product.isManualPrice
-    };
+const handleSubmit = async (e) => {
+  e.preventDefault();
 
-    if (editingIndex !== null) {
-      onEdit(editingIndex, newProduct);
-      setEditingIndex(null);
-    } else {
-      onAdd(newProduct);
-    }
+  if (!product.code || !product.quantity) {
+    toast.error("Product code and quantity are required!");
+    return;
+  }
 
-    setProduct(initialProduct);
-    setNameSuggestions([]);
-    searchProductInputRef.current?.focus();
+  const quantityValue = parseFloat(product.quantity);
+  if (isNaN(quantityValue) || quantityValue <= 0) {
+    toast.error("Please enter a valid quantity!");
+    return;
+  }
+
+  // Check stock availability
+  const stockCheck = await checkStockAvailability(
+    product.name,
+    quantityValue,
+    product.selectedUnit || product.baseUnit
+  );
+
+  if (!stockCheck.isAvailable) {
+    // Show SweetAlert popup with stock information
+    await Swal.fire({
+      title: 'Insufficient Stock',
+      html: `Only <b>${stockCheck.availableDisplay.toFixed(2)} ${product.selectedUnit || product.baseUnit}</b> available for <b>${product.name}</b>`,
+      icon: 'warning',
+      confirmButtonText: 'OK',
+      confirmButtonColor: '#3085d6',
+    });
+    return;
+  }
+
+  const newProduct = {
+    ...product,
+    id: Date.now(),
+    quantity: quantityValue,
+    price: parseFloat(product.price),
+    basicPrice: product.basicPrice,
+    gstAmount: product.gstAmount,
+    sgstAmount: product.sgstAmount,
+    totalPrice: product.totalPrice,
+    unit: product.selectedUnit || product.baseUnit,
+    isManualPrice: product.isManualPrice,
+    availableStock: stockCheck.available
   };
+
+  if (editingIndex !== null) {
+    onEdit(editingIndex, newProduct);
+    setEditingIndex(null);
+  } else {
+    onAdd(newProduct);
+  }
+
+  setProduct(initialProduct);
+  setNameSuggestions([]);
+  searchProductInputRef.current?.focus();
+};
 
   const handleEdit = (index) => {
     const productToEdit = products[index];
