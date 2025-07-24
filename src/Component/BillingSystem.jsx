@@ -323,6 +323,11 @@ const handlePaymentComplete = async (paymentDetails) => {
     toast.info('Ready for a new bill!');
   };
 
+  const handleClosePaymentModal = () => {
+  setShowPaymentModal(false);
+  // Don't reset any other state here
+};
+
   return (
     <div className="bg-gradient-to-br from-blue-50 to-blue-100 font-inter max-h-screen">
       <div className="mx-auto p-2 max-w-full">
@@ -365,7 +370,7 @@ const handlePaymentComplete = async (paymentDetails) => {
       {showPaymentModal && currentBill && (
         <PaymentModal
           currentBillData={currentBill}
-          onClose={handleFinalClose}
+            onClose={handleClosePaymentModal} 
           onComplete={handlePaymentComplete}
           isSaving={isSaving}
         />
