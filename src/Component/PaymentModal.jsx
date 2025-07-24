@@ -357,7 +357,7 @@ const PaymentModal = ({ currentBillData, onClose, onComplete, isSaving }) => {
                   type="number"
                   value={userEnteredOutstandingPayment}
                   onChange={(e) => setUserEnteredOutstandingPayment(Math.max(0, parseInt(e.target.value) || 0))} // Use parseInt
-                  className="w-40 border border-gray-300 rounded-md shadow-sm py-1 px-2 text-right focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  className="w-40 no-arrows border border-gray-300 rounded-md shadow-sm py-1 px-2 text-right focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   step="1" // Changed to step="1"
                   min="0"
                   max={actualSelectedOutstandingTotal} // Max value is the actual total of selected outstanding bills
@@ -399,7 +399,7 @@ const PaymentModal = ({ currentBillData, onClose, onComplete, isSaving }) => {
                 type="number"
                 value={amountPaid}
                 onChange={(e) => setAmountPaid(Math.max(0, parseInt(e.target.value) || 0))} // Use parseInt
-                className="w-full border border-gray-300 rounded-md shadow-sm 
+                className="w-full no-arrows border border-gray-300 rounded-md shadow-sm  
                 py-2 px-3 text-right focus:outline-none focus:ring-blue-500 focus:border-blue-500 "
                 step="1" // Changed to step="1"
                 min="0"
