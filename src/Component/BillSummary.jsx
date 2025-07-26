@@ -83,8 +83,6 @@ function BillSummary({
                 ₹{customerOutstandingCredit.toFixed(2)}
               </span>
             </div>
-          )}
-          
           <div className="flex justify-between border-t border-gray-200 pt-2 mt-1 text-sm">
             <span className="font-semibold">Grand Total Payable:</span>
             <span className="font-semibold text-xl text-blue-700">
