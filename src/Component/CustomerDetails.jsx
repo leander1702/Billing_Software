@@ -3,8 +3,8 @@ import { toast } from 'react-toastify';
 import Api from '../services/api';
 
 function CustomerDetails({ customer, onSubmit, onFocusCustomerName, onFocusPhoneNumber }) {
-  const [formData, setFormData] = useState({ 
-    name: '', 
+  const [formData, setFormData] = useState({
+    name: '',
     contact: '',
     aadhaar: '',
     location: ''
@@ -36,8 +36,8 @@ function CustomerDetails({ customer, onSubmit, onFocusCustomerName, onFocusPhone
   useEffect(() => {
     if (!customer?.contact && !customer?.name) {
       // If both contact and name are empty, reset form
-      setFormData({ 
-        name: '', 
+      setFormData({
+        name: '',
         contact: '',
         aadhaar: '',
         location: ''
@@ -55,56 +55,56 @@ function CustomerDetails({ customer, onSubmit, onFocusCustomerName, onFocusPhone
       setIsEditing(!customer?.id);
     }
   }, [customer]);
-const handleContactChange = async (e) => {
-  const contact = e.target.value.replace(/\D/g, '').slice(0, 10);
-  setFormData(prev => ({ ...prev, contact }));
+  const handleContactChange = async (e) => {
+    const contact = e.target.value.replace(/\D/g, '').slice(0, 10);
+    setFormData(prev => ({ ...prev, contact }));
 
-  if (contact.length === 10) {
-    setIsLoading(true);
-    try {
-      const response = await Api.get(`/customers?contact=${contact}`);
-      
-      // Customer found (200 OK)
-      const data = response.data;
-      toast.success(`Existing customer found: ${data.name}`);
-      setFormData({
-        name: data.name || '',
-        contact: data.contact || '',
-        aadhaar: data.aadhaar || '',
-        location: data.location || ''
-      });
-      setFoundInDB(true);
-      setIsEditing(true);
+    if (contact.length === 10) {
+      setIsLoading(true);
+      try {
+        const response = await Api.get(`/customers?contact=${contact}`);
 
-    } catch (err) {
-      if (axios.isAxiosError(err)) {
-        if (err.response?.status === 404) {
-          // Customer not found
-          setFormData(prev => ({ 
-            ...prev, 
-            name: '',
-            aadhaar: '',
-            location: ''
-          }));
-          setFoundInDB(false);
-          setIsEditing(true);
-          toast.info('New customer - please enter details');
+        // Customer found (200 OK)
+        const data = response.data;
+        toast.success(`Existing customer found: ${data.name}`);
+        setFormData({
+          name: data.name || '',
+          contact: data.contact || '',
+          aadhaar: data.aadhaar || '',
+          location: data.location || ''
+        });
+        setFoundInDB(true);
+        setIsEditing(true);
+
+      } catch (err) {
+        if (axios.isAxiosError(err)) {
+          if (err.response?.status === 404) {
+            // Customer not found
+            setFormData(prev => ({
+              ...prev,
+              name: '',
+              aadhaar: '',
+              location: ''
+            }));
+            setFoundInDB(false);
+            setIsEditing(true);
+            toast.info('New customer - please enter details');
+          } else {
+            // Other server errors (500, etc.)
+            toast.error('Error searching for customer');
+          }
         } else {
-          // Other server errors (500, etc.)
-          toast.error('Error searching for customer');
+          // Non-Axios errors (network issues, etc.)
+          toast.error('Network error - please try again');
         }
-      } else {
-        // Non-Axios errors (network issues, etc.)
-        toast.error('Network error - please try again');
+      } finally {
+        setIsLoading(false);
       }
-    } finally {
-      setIsLoading(false);
+    } else {
+      setFoundInDB(false);
+      setIsEditing(true);
     }
-  } else {
-    setFoundInDB(false);
-    setIsEditing(true);
-  }
-};
+  };
   const handleNameChange = (e) => {
     setFormData(prev => ({ ...prev, name: e.target.value }));
   };
@@ -113,14 +113,14 @@ const handleContactChange = async (e) => {
     // Format Aadhaar as XXXX-XXXX-XXXX while typing
     const value = e.target.value.replace(/\D/g, '').slice(0, 12);
     let formattedValue = value;
-    
+
     if (value.length > 4) {
       formattedValue = `${value.slice(0, 4)}-${value.slice(4, 8)}`;
       if (value.length > 8) {
         formattedValue += `-${value.slice(8)}`;
       }
     }
-    
+
     setFormData(prev => ({ ...prev, aadhaar: formattedValue }));
   };
 
@@ -129,59 +129,56 @@ const handleContactChange = async (e) => {
   };
 
   const handleSubmit = async (e) => {
-  e.preventDefault();
-  const { name, contact, aadhaar, location } = formData;
+    e.preventDefault();
+    const { name, contact, aadhaar, location } = formData;
 
-  if (!name.trim()) {
-    toast.error('Please enter customer name');
-    return;
-  }
-  if (contact.length !== 10) {
-    toast.error('Please enter 10-digit contact number');
-    return;
-  }
-
-  try {
-    setIsLoading(true);
-    
-    if (foundInDB) {
-      onSubmit(formData);
+    if (!name.trim()) {
+      toast.error('Please enter customer name');
+      return;
+    }
+    if (contact.length !== 10) {
+      toast.error('Please enter 10-digit contact number');
       return;
     }
 
-    const res = await fetch('http://localhost:5000/api/customers', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        name, 
+    try {
+      setIsLoading(true);
+
+      if (foundInDB) {
+        onSubmit(formData);
+        return;
+      }
+
+      const res = await Api.post('/customers', {
+        name,
         contact,
         aadhaar: aadhaar.replace(/-/g, ''),
-        location 
-      })
-    });
+        location
+      }, {
+        headers: { 'Content-Type': 'application/json' }
+      });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || `HTTP error! status: ${res.status}`);
+      }
 
-    if (!res.ok) {
-      const errorData = await res.json().catch(() => ({}));
-      throw new Error(errorData.message || `HTTP error! status: ${res.status}`);
+      const data = await res.json();
+      toast.success('Customer saved successfully');
+      setFormData({
+        name: data.name || '',
+        contact: data.contact || '',
+        aadhaar: data.aadhaar || '',
+        location: data.location || ''
+      });
+      setFoundInDB(true);
+      setIsEditing(false);
+      onSubmit(data); // Call the onSubmit prop with the new customer data
+    } catch (err) {
+      toast.error(err.message || 'Failed to save customer');
+    } finally {
+      setIsLoading(false);
     }
-
-    const data = await res.json();
-    toast.success('Customer saved successfully');
-    setFormData({
-      name: data.name || '',
-      contact: data.contact || '',
-      aadhaar: data.aadhaar || '',
-      location: data.location || ''
-    });
-    setFoundInDB(true);
-    setIsEditing(false);
-    onSubmit(data); // Call the onSubmit prop with the new customer data
-  } catch (err) {
-    toast.error(err.message || 'Failed to save customer');
-  } finally {
-    setIsLoading(false);
-  }
-};
+  };
 
   return (
     <div className="bg-white p-3 border border-gray-200 rounded-sm">
