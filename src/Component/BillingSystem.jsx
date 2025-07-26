@@ -176,196 +176,97 @@ const BillingSystem = ({
     setShowPaymentModal(true);
   };
 
+// const handlePaymentComplete = async (paymentDetails) => {
+//   if (!currentBill) {
+//     toast.error('No bill data available for payment. Please try again.');
+//     return;
+//   }
+// }
+ const handlePaymentComplete = async (paymentDetails) => {
+  if (!currentBill) {
+    toast.error('No bill data available for payment. Please try again.');
+    return;
+  }
 
-  const handlePaymentComplete = async (paymentDetails) => {
-    setIsSaving(true);
+  setIsSaving(true);
+  const userData = JSON.parse(localStorage.getItem('loggedInUser'));
 
-    const userData = JSON.parse(localStorage.getItem('loggedInUser'));
-    const cashier = {
-      cashierId: userData.cashierId,
-      cashierName: userData.cashierName,
-      counterNum: userData.counterNum,
-      contactNumber: userData.contactNumber
-    };
+  const cashier = {
+    cashierId: userData.cashierId,
+    cashierName: userData.cashierName,
+    counterNum: userData.counterNum,
+    contactNumber: userData.contactNumber,
+  };
 
-    let apiUrl = '';
-    let payload = {};
- 
+  const productSubtotal = parseFloat(currentBill.productSubtotal?.toFixed(2) || '0');
+  const currentBillTotal = parseFloat(currentBill.currentBillTotal?.toFixed(2) || '0');
+  const grandTotal = parseFloat(paymentDetails.totalAmountDueForSelected || '0');
+  const unpaidAmountForThisBill = Math.max(0, currentBillTotal - (paymentDetails.currentBillPayment || 0));
 
-    // Prepare complete bill data
-    const completeBill = {
-      customer: {
-        id: currentBill.customer.id,
-        name: currentBill.customer.name || '',
-        contact: currentBill.customer.contact || '',
-        aadhaar: currentBill.customer.aadhaar || '',
-        location: currentBill.customer.location || ''
-      },
-      products: currentBill.products.map(p => ({
-        name: p.name,
-        code: p.code,
-        price: p.price,
-        quantity: p.quantity,
-        unit: p.unit,
-        totalPrice: p.totalPrice,
-        discount: p.discount || 0
-      })),
-      productSubtotal,
-      currentBillTotal: productSubtotal,
-      payment: {
-        method: paymentDetails.method || 'cash',
-        currentBillPayment: paymentDetails.currentBillPayment || 0,
-        selectedOutstandingPayment: paymentDetails.selectedOutstandingPayment || 0,
-        transactionId: paymentDetails.transactionId || ''
-      },
-      billNumber: currentBill.billNumber || `BILL-${Date.now()}`,
-      selectedUnpaidBillIds: paymentDetails.selectedUnpaidBillIds || []
-    };
+  const isNewBillPresent = currentBill.products && currentBill.products.length > 0;
 
-    if (isNewBillPresent) {
-      apiUrl = 'http://localhost:5000/api/bills';
-      payload = {
+  const payload = isNewBillPresent
+    ? {
         customer: currentBill.customer,
-        products: currentBill.products, // Products for the new bill
-        productSubtotal: currentBill.productSubtotal,
-        productGst: currentBill.productGst,
-        currentBillTotal: currentBill.currentBillTotal, // Total for the new products only
-        previousOutstandingCredit: currentBill.previousOutstandingCredit, // Full outstanding customer had before this transaction
-        grandTotal: paymentDetails.totalAmountDueForSelected, // This is the total the user is paying for (new + selected outstanding)
+        products: currentBill.products,
+        productSubtotal,
+        productGst: 0, // assuming no GST
+        currentBillTotal,
+        previousOutstandingCredit: currentBill.previousOutstandingCredit || 0,
+        grandTotal,
+        unpaidAmountForThisBill,
         cashier,
         payment: {
           method: paymentDetails.method,
-          amountPaid: paymentDetails.amountPaid, // Total amount collected by the user
-          transactionId: paymentDetails.transactionId,
-          // Explicitly pass amounts allocated to current vs. outstanding by PaymentModal
-          currentBillPayment: paymentDetails.currentBillPayment,
-          selectedOutstandingPayment: paymentDetails.selectedOutstandingPayment,
+          amountPaid: paymentDetails.amountPaid,
+          transactionId: paymentDetails.transactionId || '',
+          currentBillPayment: paymentDetails.currentBillPayment || 0,
+          selectedOutstandingPayment: paymentDetails.selectedOutstandingPayment || 0,
         },
-        billNumber: currentBill.billNumber, // The new bill number
+        billNumber: currentBill.billNumber,
         date: currentBill.date,
-        // The unpaidAmountForThisBill here reflects the unpaid portion of the *new* bill.
-        // The backend will manage the unpaidAmountForThisBill for selected old bills.
-        unpaidAmountForThisBill: Math.max(0, currentBill.currentBillTotal - paymentDetails.currentBillPayment),
-        selectedUnpaidBillIds: paymentDetails.selectedUnpaidBillIds, // IDs of bills selected for payment
-      };
-    } else {
-      // Scenario 2: Outstanding Bill Payment ONLY (no new bill)
-      // This goes to the new dedicated endpoint for settling outstanding bills
-      apiUrl = 'http://localhost:5000/api/bills/settle-outstanding';
-      payload = {
-        customerId: customer.id, // The ID of the customer whose bills are being settled
+        selectedUnpaidBillIds: paymentDetails.selectedUnpaidBillIds || [],
+      }
+    : {
+        customerId: customer.id,
         paymentMethod: paymentDetails.method,
         transactionId: paymentDetails.transactionId,
-        amountPaid: paymentDetails.amountPaid, // The total amount paid for outstanding bills
+        amountPaid: paymentDetails.amountPaid,
         selectedUnpaidBillIds: paymentDetails.selectedUnpaidBillIds,
         cashier,
       };
-      // For this scenario, we don't send `products`, `currentBillTotal`, `billNumber` etc.,
-      // as no new bill is being created.
-    }
 
-    console.log(`✅ Sending payload to ${apiUrl}:`, payload);
-  
-    try {
-      const res = await fetch(apiUrl, {
-        method: 'POST', // Both endpoints currently use POST
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-    
-    console.log("Sending bill data:", completeBill);
-    
+  const apiUrl = isNewBillPresent
+    ? 'http://localhost:5000/api/bills'
+    : 'http://localhost:5000/api/bills/settle-outstanding';
 
-    // First check stock availability
-    for (const product of completeBill.products) {
-      const stockCheck = await Api.get(`/products/check-stock/${product.code}`, {
-        params: { unit: product.unit, quantity: product.quantity }
-      });
-      
-      if (!stockCheck.data.isAvailable) {
-        throw new Error(`Insufficient stock for ${product.name}`);
-      }
-    }
-  
-    // Then create the bill
-    const response = await Api.post('/bills', completeBill);
-    
-    console.log("Bill created successfully:", response.data);
-    toast.success('Payment successful and bill saved!');
-    handleFinalClose();
-
-  } catch (error) {
-    console.error('Error during payment:', error);
-    
-    if (error.response) {
-      console.error('Server response:', error.response.data);
-      toast.error(error.response.data.message || 'Payment failed');
-    } else {
-      toast.error(error.message || 'Failed to complete payment');
-    }
-  }
+  console.log(`✅ Sending payload to ${apiUrl}:`, payload);
 
   try {
-    // Calculate productSubtotal from products (sum of totalPrice)
-    const productSubtotal = currentBill.products.reduce(
-      (sum, product) => sum + (product.totalPrice || 0), 
-      0
-    );
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
 
-    // Prepare the complete bill data with all required fields
-    const completeBill = {
-      customer: {
-        id: currentBill.customer.id,
-        name: currentBill.customer.name || '',
-        contact: currentBill.customer.contact || '',
-        aadhaar: currentBill.customer.aadhaar || '',
-        location: currentBill.customer.location || ''
-      },
-      products: currentBill.products.map(p => ({
-        name: p.name,
-        code: p.code,
-        price: p.price,
-        quantity: p.quantity,
-        unit: p.unit,
-        totalPrice: p.totalPrice,
-        discount: p.discount || 0
-      })),
-      productSubtotal: productSubtotal,
-      currentBillTotal: productSubtotal, // Same as subtotal since we removed GST
-      payment: {
-        method: paymentDetails.method,
-        currentBillPayment: paymentDetails.currentBillPayment,
-        selectedOutstandingPayment: paymentDetails.selectedOutstandingPayment || 0,
-        transactionId: paymentDetails.transactionId || ''
-      },
-      billNumber: currentBill.billNumber,
-      selectedUnpaidBillIds: paymentDetails.selectedUnpaidBillIds || []
-    };
+    const data = await response.json();
 
-    console.log("Sending bill data:", completeBill);
+    if (!response.ok) {
+      throw new Error(data.message || 'Payment failed');
+    }
 
-    const response = await Api.post('/bills', completeBill);
-    
-    console.log("Bill created successfully:", response.data);
+    console.log('✅ Bill created successfully:', data);
     toast.success('Payment successful and bill saved!');
     handleFinalClose();
-
   } catch (error) {
-    console.error('Error during payment:', error);
-    
-    if (error.response) {
-      console.error('Server responded with:', error.response.status);
-      console.error('Response data:', error.response.data);
-      toast.error(error.response.data.message || 'Payment failed');
-    } else if (error.request) {
-      console.error('No response received:', error.request);
-      toast.error('Network error. Please check your connection.');
-    } else {
-      console.error('Request setup error:', error.message);
-      toast.error(error.message || 'Failed to complete payment');
-    }
+    console.error('❌ Error during payment:', error);
+    toast.error(error.message || 'Payment failed');
+  } finally {
+    setIsSaving(false);
   }
-  }
+};
+
+
   const handleFinalClose = () => {
     setShowPaymentModal(false);
     setCustomer({ id: '', name: '', contact: '', aadhaar: '', location: '' });
@@ -425,7 +326,6 @@ const BillingSystem = ({
       )}
     </div>
   );
-
 };
 
 export default BillingSystem;
