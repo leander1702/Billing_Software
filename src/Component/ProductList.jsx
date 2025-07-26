@@ -108,7 +108,7 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge, onTra
 
         const selectedUnit = product.selectedUnit || productData.baseUnit;
         let price = productData.mrp || 0;
-        
+
         if (selectedUnit === productData.secondaryUnit) {
           price = productData.mrp / productData.conversionRate;
           price = Math.round(price * 10) / 10;
@@ -117,8 +117,8 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge, onTra
         const gstPercentage = productData.gst || 0;
         const sgstPercentage = productData.sgst || 0;
         const totalTaxPercentage = gstPercentage + sgstPercentage;
-        
-        const basicPrice = totalTaxPercentage > 0 
+
+        const basicPrice = totalTaxPercentage > 0
           ? price / (1 + (totalTaxPercentage / 100))
           : price;
 
@@ -189,7 +189,7 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge, onTra
   const handleNameChange = (e) => {
     const { value } = e.target;
     setProduct(prev => ({ ...prev, name: value }));
-    
+
     if (value.length > 1) {
       fetchProductSuggestions(value);
     } else {
@@ -292,8 +292,8 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge, onTra
       const gstPercentage = product.gst || 0;
       const sgstPercentage = product.sgst || 0;
       const totalTaxPercentage = gstPercentage + sgstPercentage;
-      
-      const basicPrice = totalTaxPercentage > 0 
+
+      const basicPrice = totalTaxPercentage > 0
         ? priceValue / (1 + (totalTaxPercentage / 100))
         : priceValue;
 
@@ -314,8 +314,8 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge, onTra
       const sgstValue = name === 'sgst' ? parseFloat(processedValue) || 0 : product.sgst;
       const priceValue = parseFloat(product.price) || 0;
       const totalTaxPercentage = gstValue + sgstValue;
-      
-      const basicPrice = totalTaxPercentage > 0 
+
+      const basicPrice = totalTaxPercentage > 0
         ? priceValue / (1 + (totalTaxPercentage / 100))
         : priceValue;
 
@@ -455,9 +455,9 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge, onTra
   };
 
   return (
-    <div className="flex flex-col h-full bg-gray-50 rounded-lg shadow-sm">
+    <div className="flex flex-col h-full relative">
       {/* Product Form */}
-      <div className="bg-white p-4 mb-3 border border-gray-200 rounded-lg shadow-sm">
+      <div className="bg-white p-4 border border-gray-200 ">
         <form onSubmit={handleSubmit}>
           <div className="flex flex-col md:flex-row items-center justify-between gap-3 mb-3">
             <div className="relative flex-1 w-full">
@@ -467,7 +467,7 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge, onTra
               <input
                 type="text"
                 placeholder="Search products by code..."
-                className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-3/4 pl-10 pr-3 py-1 text-sm border border-gray-300 rounded-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 ref={searchProductInputRef}
@@ -475,11 +475,10 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge, onTra
             </div>
             <button
               type="submit"
-              className={`px-4 py-2 text-sm rounded-lg flex items-center gap-2 ${
-                editingIndex !== null 
-                  ? 'bg-yellow-500 hover:bg-yellow-600' 
-                  : 'bg-blue-600 hover:bg-blue-700'
-              } text-white transition-colors`}
+              className={`px-4 py-1 text-sm rounded-sm flex items-center gap-2 ${editingIndex !== null
+                ? 'bg-yellow-500 hover:bg-yellow-600'
+                : 'bg-blue-600 hover:bg-blue-700'
+                } text-white transition-colors`}
               ref={addProductButtonRef}
               disabled={isLoading}
             >
@@ -502,7 +501,7 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge, onTra
             </button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-9 gap-2">
             {/* Product Code */}
             <div className="col-span-1">
               <label className="block text-xs font-medium text-gray-700 mb-1">Code*</label>
@@ -512,7 +511,7 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge, onTra
                 value={product.code}
                 onChange={handleChange}
                 ref={productCodeInputRef}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-1 text-sm border border-gray-300 rounded-sm focus:ring-blue-500 focus:border-blue-500"
                 required
               />
             </div>
@@ -528,14 +527,14 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge, onTra
                 onFocus={() => setShowNameSuggestions(true)}
                 onBlur={() => setTimeout(() => setShowNameSuggestions(false), 200)}
                 ref={productNameInputRef}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-1 text-sm border border-gray-300 rounded-sm focus:ring-blue-500 focus:border-blue-500"
               />
               {showNameSuggestions && nameSuggestions.length > 0 && (
                 <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto">
                   {nameSuggestions.map((item, index) => (
                     <div
                       key={index}
-                      className="px-4 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100"
+                      className="px-4 py-1 hover:bg-blue-50 cursor-pointer border-b border-gray-100"
                       onClick={() => handleSelectNameSuggestion(item)}
                     >
                       <div className="font-medium">{item.productName}</div>
@@ -565,7 +564,7 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge, onTra
                 name="selectedUnit"
                 value={product.selectedUnit || product.baseUnit}
                 onChange={handleUnitChange}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-1 text-sm border border-gray-300 rounded-sm focus:ring-blue-500 focus:border-blue-500"
                 disabled={isLoading}
               >
                 {availableUnits.map(unit => (
@@ -587,7 +586,7 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge, onTra
                 ref={quantityInputRef}
                 inputMode="numeric"
                 pattern="[0-9]*[.,]?[0-9]*"
-                className="no-arrows w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                className="no-arrows w-full px-3 py-1 text-sm border border-gray-300 rounded-sm focus:ring-blue-500 focus:border-blue-500"
                 required
               />
             </div>
@@ -600,7 +599,7 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge, onTra
                 name="basicPrice"
                 value={product.basicPrice.toFixed(2)}
                 readOnly
-                className="w-full px-3 py-2 text-sm border bg-gray-100 rounded-lg"
+                className="w-full px-3 py-1 text-sm border bg-gray-100 rounded-sm"
               />
             </div>
 
@@ -614,7 +613,7 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge, onTra
                 onChange={handleChange}
                 inputMode="numeric"
                 pattern="[0-9]*[.,]?[0-9]*"
-                className="no-arrows w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                className="no-arrows w-full px-3 py-1 text-sm border border-gray-300 rounded-sm focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
 
@@ -628,7 +627,7 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge, onTra
                 onChange={handleChange}
                 inputMode="numeric"
                 pattern="[0-9]*[.,]?[0-9]*"
-                className="no-arrows w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                className="no-arrows w-full px-3 py-1 text-sm border border-gray-300 rounded-sm focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
 
@@ -643,7 +642,7 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge, onTra
                 inputMode="numeric"
                 pattern="[0-9]*[.,]?[0-9]*"
                 ref={priceInputRef}
-                className="no-arrows w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                className="no-arrows w-full px-3 py-1 text-sm border border-gray-300 rounded-sm focus:ring-blue-500 focus:border-blue-500"
                 required
               />
             </div>
@@ -656,7 +655,7 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge, onTra
                 name="totalPrice"
                 value={product.totalPrice.toFixed(2)}
                 readOnly
-                className="w-full px-3 py-2 text-sm border bg-gray-100 rounded-lg font-medium text-blue-600"
+                className="w-full px-3 py-1 text-sm border bg-gray-100 rounded-sm font-medium text-blue-600"
               />
             </div>
           </div>
@@ -664,8 +663,13 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge, onTra
       </div>
 
       {/* Products Table */}
-      <div className="flex-1 bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
-        <div className="overflow-x-auto" style={{ maxHeight: 'calc(100vh - 250px)' }}>
+      <div className="flex-1 relative overflow-hidden bg-white border border-gray-200 rounded-sm shadow-sm">
+        <div className="overflow-x-auto h-full"
+          style={{
+            maxHeight: 'calc(100vh - 350px)', // Adjust this value as needed
+            marginBottom: '80px' // Add space for the fixed footer
+          }}
+        >
           <table className="min-w-full border-collapse text-sm">
             <thead className="bg-gray-100 sticky top-0">
               <tr>
@@ -706,8 +710,8 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge, onTra
                       <td className="px-4 py-3">
                         {Number.isInteger(item.quantity) ? item.quantity : item.quantity.toFixed(2)} {getUnitLabel(item.unit)}
                       </td>
-                      <td className="px-4 py-3 font-medium">₹{totalPrice.toFixed(2)}</td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-1 font-medium">₹{totalPrice.toFixed(2)}</td>
+                      <td className="px-4 py-1">
                         <div className="flex gap-2">
                           <button
                             onClick={() => handleEdit(index)}
@@ -731,7 +735,7 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge, onTra
               ) : (
                 <tr>
                   <td colSpan="14" className="px-4 py-8 text-center text-gray-500">
-                    {products.length > 0 
+                    {products.length > 0
                       ? 'No products match your search'
                       : 'No products added yet. Start by adding products above.'}
                   </td>
@@ -740,7 +744,6 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge, onTra
             </tbody>
           </table>
         </div>
-
       {/* Transport Charge Input */}
      <div className="bg-gray-50 px-6 py-3 border-t">
         <div className="flex items-center gap-4 w-full">
@@ -791,5 +794,4 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge, onTra
     </div> 
   );
 }
-
 export default ProductList;

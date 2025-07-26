@@ -39,7 +39,6 @@ function BillSummary({
   return (
     <div className="bg-white p-3 border border-gray-200 rounded-sm sticky">
       <h2 className="text-sm font-semibold mb-2">Bill Summary</h2>
-
       <div className="space-y-2">
         <div className="border-t border-gray-200 pt-2">
           <div className="flex justify-between text-sm mb-1">
@@ -77,9 +76,9 @@ function BillSummary({
             </span>
           </div>
 
-          {customerOutstandingCredit > 0 && (
-            <div className="flex justify-between text-sm mb-1 text-red-600">
-              <span className="font-medium">Previous Unpaid Amount:</span>
+            {/* Previous Unpaid Amount - Always visible with conditional styling */}
+            <div className={`flex justify-between text-sm mb-1 ${customerOutstandingCredit > 0 ? 'text-red-600' : 'text-green-600'}`}>
+              <span className="font-medium">Credit Due:</span>
               <span className="font-medium">
                 ₹{customerOutstandingCredit.toFixed(2)}
               </span>
@@ -94,33 +93,33 @@ function BillSummary({
           </div>
         </div>
 
-        <div className="flex gap-2 pt-3">
-          <button
-            onClick={onPrint}
-            disabled={products.length === 0 && customerOutstandingCredit === 0}
-            className={`flex-1 py-1 text-sm rounded-sm focus:outline-none ${
-              (products.length === 0 && customerOutstandingCredit === 0)
-                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                : 'bg-blue-600 text-white hover:bg-blue-700'
-            }`}
-            ref={printButtonRef}
-          >
-            Save & Print
-          </button>
-          <button
-            onClick={onProceedToPayment}
-            disabled={(products.length === 0 && customerOutstandingCredit === 0)}
-            className={`flex-1 py-1 text-sm rounded-sm focus:outline-none ${
-              (products.length === 0 && customerOutstandingCredit === 0)
-                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                : 'bg-blue-600 text-white hover:bg-blue-700'
-            }`}
-            ref={paymentButtonRef}
-          >
-            Payment
-          </button>
-        </div>
-      </div>
+            <div className="flex gap-2 pt-3">
+              <button
+                onClick={onPrint}
+                disabled={products.length === 0 && customerOutstandingCredit === 0}
+                className={`flex-1 py-1 text-sm rounded-sm focus:outline-none ${
+                  (products.length === 0 && customerOutstandingCredit === 0)
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                }`}
+                ref={printButtonRef}
+              >
+                Save & Print
+              </button>
+              <button
+                onClick={onProceedToPayment}
+                disabled={(products.length === 0 && customerOutstandingCredit === 0)}
+                className={`flex-1 py-1 text-sm rounded-sm focus:outline-none ${
+                  (products.length === 0 && customerOutstandingCredit === 0)
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                }`}
+                ref={paymentButtonRef}
+              >
+                Payment
+              </button>
+            </div>
+          </div>
     </div>
   );
 }

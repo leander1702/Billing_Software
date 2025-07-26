@@ -294,7 +294,7 @@ const BillingSystem = ({
 
   return (
     <div className="bg-gradient-to-br from-blue-50 to-blue-100 font-inter max-h-screen">
-      <div className="mx-auto p-2 max-w-full">
+      <div className="mx-auto p-1 max-w-full">
         <div className="flex flex-col lg:flex-row gap-1">
           <div className="lg:w-3/4">
             <ProductList
@@ -311,6 +311,7 @@ const BillingSystem = ({
             />
           </div>
           <div className="lg:w-1/4 flex flex-col gap-1">
+            {/* <CashierDetails /> */}
             <CustomerDetails
               customer={customer}
               onSubmit={handleCustomerSubmit}
