@@ -29,6 +29,7 @@ const UserLogin = () => {
     }
   };
 
+  // UserLogin.jsx
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
@@ -42,27 +43,31 @@ const UserLogin = () => {
 
     try {
       const res = await Api.get("/credentials/users");
-      const usersData = res.data; 
-      
+      const usersData = res.data;
+
       const foundUser = usersData.find(
         (user) => user.contactNumber === phoneNumber && user.password === password
       );
 
       if (foundUser) {
         const userData = {
-          ...foundUser,
+          cashierId: foundUser.cashierId,
+          cashierName: foundUser.cashierName,
+          counterNum: foundUser.counterNum,
+          contactNumber: foundUser.contactNumber,
+          role: foundUser.role,
+          permissions: foundUser.permissions,
           rememberMe,
           loginTime: new Date().getTime()
         };
-        
+
         localStorage.setItem('loggedInUser', JSON.stringify(userData));
-        
-        // Add event listener for tab close
+
         if (!rememberMe) {
           window.addEventListener('beforeunload', handleBeforeUnload);
         }
-        
-        navigate("/"); 
+
+        navigate("/");
       } else {
         setError("Invalid phone number or password");
       }
