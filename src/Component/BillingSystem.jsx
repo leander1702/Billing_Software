@@ -181,10 +181,18 @@ const BillingSystem = ({
 };
 
   const handlePaymentComplete = async (paymentDetails) => {
-  if (!currentBill) {
-    toast.error('No bill data available for payment. Please try again.');
-    return;
-  }
+    setIsSaving(true);
+
+    const userData = JSON.parse(localStorage.getItem('loggedInUser'));
+    const cashier = {
+      cashierId: userData.cashierId,
+      cashierName: userData.cashierName,
+      counterNum: userData.counterNum,
+      contactNumber: userData.contactNumber
+    };
+
+    let apiUrl = '';
+    let payload = {};
 
   try {
     // Calculate all values with proper fallbacks
@@ -239,7 +247,59 @@ const BillingSystem = ({
       isOutstandingPaymentOnly: products.length === 0
     };
 
+    if (isNewBillPresent) {
+      apiUrl = 'http://localhost:5000/api/bills';
+      payload = {
+        customer: currentBill.customer,
+        products: currentBill.products, // Products for the new bill
+        productSubtotal: currentBill.productSubtotal,
+        productGst: currentBill.productGst,
+        currentBillTotal: currentBill.currentBillTotal, // Total for the new products only
+        previousOutstandingCredit: currentBill.previousOutstandingCredit, // Full outstanding customer had before this transaction
+        grandTotal: paymentDetails.totalAmountDueForSelected, // This is the total the user is paying for (new + selected outstanding)
+        cashier,
+        payment: {
+          method: paymentDetails.method,
+          amountPaid: paymentDetails.amountPaid, // Total amount collected by the user
+          transactionId: paymentDetails.transactionId,
+          // Explicitly pass amounts allocated to current vs. outstanding by PaymentModal
+          currentBillPayment: paymentDetails.currentBillPayment,
+          selectedOutstandingPayment: paymentDetails.selectedOutstandingPayment,
+        },
+        billNumber: currentBill.billNumber, // The new bill number
+        date: currentBill.date,
+        // The unpaidAmountForThisBill here reflects the unpaid portion of the *new* bill.
+        // The backend will manage the unpaidAmountForThisBill for selected old bills.
+        unpaidAmountForThisBill: Math.max(0, currentBill.currentBillTotal - paymentDetails.currentBillPayment),
+        selectedUnpaidBillIds: paymentDetails.selectedUnpaidBillIds, // IDs of bills selected for payment
+      };
+    } else {
+      // Scenario 2: Outstanding Bill Payment ONLY (no new bill)
+      // This goes to the new dedicated endpoint for settling outstanding bills
+      apiUrl = 'http://localhost:5000/api/bills/settle-outstanding';
+      payload = {
+        customerId: customer.id, // The ID of the customer whose bills are being settled
+        paymentMethod: paymentDetails.method,
+        transactionId: paymentDetails.transactionId,
+        amountPaid: paymentDetails.amountPaid, // The total amount paid for outstanding bills
+        selectedUnpaidBillIds: paymentDetails.selectedUnpaidBillIds,
+        cashier,
+      };
+      // For this scenario, we don't send `products`, `currentBillTotal`, `billNumber` etc.,
+      // as no new bill is being created.
+    }
+
+    console.log(`✅ Sending payload to ${apiUrl}:`, payload);
+  
+    try {
+      const res = await fetch(apiUrl, {
+        method: 'POST', // Both endpoints currently use POST
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+    
     console.log("Sending bill data:", completeBill);
+    
 
     // Only check stock if there are products
     if (products.length > 0) {
@@ -253,7 +313,7 @@ const BillingSystem = ({
         }
       }
     }
-
+  
     // Then create the bill
     const response = await Api.post('/bills', completeBill);
     
@@ -276,8 +336,7 @@ const BillingSystem = ({
       toast.error(error.message || 'Failed to complete payment');
     }
   }
-};
-
+  }
   const handleFinalClose = () => {
     setShowPaymentModal(false);
     setCustomer({ id: '', name: '', contact: '', aadhaar: '', location: '' });
@@ -311,7 +370,7 @@ const BillingSystem = ({
             />
           </div>
           <div className="lg:w-1/4 flex flex-col gap-1">
-            {/* <CashierDetails /> */}
+            <CashierDetails />
             <CustomerDetails
               customer={customer}
               onSubmit={handleCustomerSubmit}
@@ -345,6 +404,7 @@ const BillingSystem = ({
       )}
     </div>
   );
+
 };
 
 export default BillingSystem;
