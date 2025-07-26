@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { toast } from 'react-toastify';
+import Api from '../services/api';
 
 const PaymentModal = ({ currentBillData, onClose, onComplete, isSaving }) => {
   const {
@@ -68,11 +69,12 @@ const PaymentModal = ({ currentBillData, onClose, onComplete, isSaving }) => {
   const fetchUnpaidBills = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(`http://localhost:5000/api/bills/unpaid?customerId=${customer.id}`);
-      if (!response.ok) throw new Error('Failed to fetch unpaid bills');
-      const data = await response.json();
+      const response = await Api.get(`/bills/unpaid`, {
+        params: { customerId: customer.id }
+      });
       // Filter to ensure only bills with actual unpaid amounts are shown
-      setUnpaidBills(Array.isArray(data) ? data.filter(bill => (bill.unpaidAmountForThisBill || 0) > 0) : []);
+      setUnpaidBills(Array.isArray(response.data) ? 
+        response.data.filter(bill => (bill.unpaidAmountForThisBill || 0) > 0) : []);
     } catch (error) {
       console.error('Error fetching unpaid bills:', error);
       toast.error('Failed to load unpaid bills');
@@ -81,7 +83,6 @@ const PaymentModal = ({ currentBillData, onClose, onComplete, isSaving }) => {
       setIsLoading(false);
     }
   };
-
   const handleBillSelection = (billId) => {
     setSelectedBills((prevSelected) => {
       const newSelected = prevSelected.includes(billId)
