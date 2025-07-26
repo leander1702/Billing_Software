@@ -59,23 +59,23 @@ const BillingSystem = ({
   const handleCustomerSubmit = async (customerData) => {
     try {
       setIsCheckingCustomer(true);
-      const res = await Api.get(`/customers`, {
-        params: { contact: customerData.contact }
-      });
+      const res = await Api.get(`/customers?contact=${customerData.contact}`);
 
-      // Axios throws errors for non-2xx responses, so we catch 404 specifically
-      toast.info(`Existing customer found: ${res.data.name}`);
+      // Existing customer found
+      const existingCustomer = res.data;
+      toast.info(`Existing customer found: ${existingCustomer.name}`);
       setCustomer({
-        id: res.data.id,
-        name: res.data.name,
-        contact: res.data.contact,
-        aadhaar: res.data.aadhaar || '',
-        location: res.data.location || '',
+        id: existingCustomer.id,
+        name: existingCustomer.name,
+        contact: existingCustomer.contact,
+        aadhaar: existingCustomer.aadhaar || '',
+        location: existingCustomer.location || ''
       });
-      setCustomerOutstandingCredit(res.data.outstandingCredit || 0);
-
-    } catch (error) {
-      if (error.response?.status === 404) {
+      setCustomerOutstandingCredit(existingCustomer.outstandingCredit || 0);
+      setFoundInDB(true); // This should be managed in parent if needed
+    } catch (err) {
+      if (err.response?.status === 404) {
+        // New customer case
         setCustomer({
           id: '',
           name: customerData.name,
@@ -87,7 +87,6 @@ const BillingSystem = ({
         toast.info('New customer - please enter details to save.');
         customerNameFocusRef.current?.focus();
       } else {
-        console.error('Failed to fetch customer details:', error);
         throw new Error('Failed to fetch customer details');
       }
     } finally {
@@ -111,38 +110,38 @@ const BillingSystem = ({
   };
 
   const calculateSubtotal = () =>
-  products.reduce((sum, item) => {
-    const baseAmount = (item.basicPrice || 0) * (item.quantity || 0);
-    return sum + baseAmount;
-  }, 0);
+    products.reduce((sum, item) => {
+      const baseAmount = (item.basicPrice || 0) * (item.quantity || 0);
+      return sum + baseAmount;
+    }, 0);
 
-const calculateGST = () =>
-  products.reduce((sum, item) => {
-    const baseAmount = (item.gstAmount || 0) * (item.quantity || 0);
-    return sum + baseAmount;
-  }, 0);
+  const calculateGST = () =>
+    products.reduce((sum, item) => {
+      const baseAmount = (item.gstAmount || 0) * (item.quantity || 0);
+      return sum + baseAmount;
+    }, 0);
 
-const calculateSGST = () =>
-  products.reduce((sum, item) => {
-    const baseAmount = (item.sgstAmount || 0) * (item.quantity || 0);
-    return sum + baseAmount;
-  }, 0);
+  const calculateSGST = () =>
+    products.reduce((sum, item) => {
+      const baseAmount = (item.sgstAmount || 0) * (item.quantity || 0);
+      return sum + baseAmount;
+    }, 0);
 
-const calculateProductsSubtotal = () => {
-  const subtotal = calculateSubtotal();
-  const gst = calculateGST();
-  const sgst = calculateSGST();
-  return subtotal + gst + sgst;
-};
+  const calculateProductsSubtotal = () => {
+    const subtotal = calculateSubtotal();
+    const gst = calculateGST();
+    const sgst = calculateSGST();
+    return subtotal + gst + sgst;
+  };
 
-const calculateCurrentBillTotal = () => {
-  const subtotal = calculateProductsSubtotal();
-  return subtotal + (transportCharge || 0);
-};
+  const calculateCurrentBillTotal = () => {
+    const subtotal = calculateProductsSubtotal();
+    return subtotal + (transportCharge || 0);
+  };
 
-const calculateGrandTotal = () => {
-  return calculateCurrentBillTotal() + (customerOutstandingCredit || 0);
-};
+  const calculateGrandTotal = () => {
+    return calculateCurrentBillTotal() + (customerOutstandingCredit || 0);
+  };
 
   const handleNewCustomer = () => {
     setCustomer({ id: '', name: '', contact: '', aadhaar: '', location: '' });
@@ -153,32 +152,33 @@ const calculateGrandTotal = () => {
   };
 
   const handleProceedToPayment = () => {
-    if (!customer.id && (!customer.name.trim() || customer.contact.length !== 10)) {
-      toast.error('Please enter complete customer details before proceeding to payment.');
-      return;
-    }
-    // Allow proceeding to payment if there are products OR if there's outstanding credit
-    if (products.length === 0 && customerOutstandingCredit === 0) {
-      toast.error('Please add products or resolve outstanding credit before proceeding to payment.');
-      return;
-    }
+  if (!customer.id && (!customer.name.trim() || customer.contact.length !== 10)) {
+    toast.error('Please enter complete customer details before proceeding to payment.');
+    return;
+  }
+  
+  // Allow proceeding to payment if there are products OR if there's outstanding credit
+  if (products.length === 0 && customerOutstandingCredit === 0) {
+    toast.error('Please add products or resolve outstanding credit before proceeding to payment.');
+    return;
+  }
 
-    // Pass data for a potential new bill.
-    // If only outstanding is being paid, currentBillTotal will be 0, and products will be empty.
-    setCurrentBill({
-      customer,
-      products, // Products for the NEW bill
-      productSubtotal: calculateProductsSubtotal(),
-      currentBillTotal: calculateCurrentBillTotal(), // Total for the NEW products
-      previousOutstandingCredit: customerOutstandingCredit, // Full outstanding
-      grandTotal: calculateGrandTotal(), // Combined total, for display/initial payment amount
-      date: new Date().toISOString(),
-      // Generate a bill number ONLY if there are new products.
-      // Otherwise, the backend will handle updates to existing bills.
-      billNumber: calculateCurrentBillTotal() > 0 ? `BILL-${customer.id || 'NEW'}-${Date.now()}` : '',
-    });
-    setShowPaymentModal(true);
-  };
+  // Pass data for a potential new bill.
+  setCurrentBill({
+    customer,
+    products,
+    productSubtotal: calculateProductsSubtotal(),
+    currentBillTotal: calculateCurrentBillTotal(), // Will be 0 if no products
+    previousOutstandingCredit: customerOutstandingCredit,
+    grandTotal: calculateGrandTotal(),
+    date: new Date().toISOString(),
+    // Generate a bill number only if there are products
+    billNumber: products.length > 0 ? `BILL-${customer.id || 'NEW'}-${Date.now()}` : 'OUTSTANDING-' + Date.now(),
+    // Add flag for outstanding-only payments
+    isOutstandingPaymentOnly: products.length === 0 && customerOutstandingCredit > 0
+  });
+  setShowPaymentModal(true);
+};
 
   const handlePaymentComplete = async (paymentDetails) => {
   if (!currentBill) {
@@ -204,21 +204,24 @@ const calculateGrandTotal = () => {
         aadhaar: currentBill.customer.aadhaar || '',
         location: currentBill.customer.location || ''
       },
-      products: currentBill.products.map(p => ({
-        name: p.name,
-        code: p.code,
-        price: Number(p.price || 0),
-        quantity: Number(p.quantity || 0),
-        unit: p.unit,
-        totalPrice: Number(p.totalPrice || 0),
-        discount: Number(p.discount || 0),
-        basicPrice: Number(p.basicPrice || 0),
-        gst: Number(p.gst || 0),
-        sgst: Number(p.sgst || 0),
-        gstAmount: Number(p.gstAmount || 0),
-        sgstAmount: Number(p.sgstAmount || 0),
-        hsnCode: p.hsnCode || ''
-      })),
+      // Only include products if there are any
+      ...(products.length > 0 && {
+        products: currentBill.products.map(p => ({
+          name: p.name,
+          code: p.code,
+          price: Number(p.price || 0),
+          quantity: Number(p.quantity || 0),
+          unit: p.unit,
+          totalPrice: Number(p.totalPrice || 0),
+          discount: Number(p.discount || 0),
+          basicPrice: Number(p.basicPrice || 0),
+          gst: Number(p.gst || 0),
+          sgst: Number(p.sgst || 0),
+          gstAmount: Number(p.gstAmount || 0),
+          sgstAmount: Number(p.sgstAmount || 0),
+          hsnCode: p.hsnCode || ''
+        }))
+      }),
       productSubtotal,
       transportCharge: Number(transportCharge || 0),
       currentBillTotal,
@@ -231,19 +234,23 @@ const calculateGrandTotal = () => {
         transactionId: paymentDetails.transactionId || ''
       },
       billNumber: currentBill.billNumber || `BILL-${Date.now()}`,
-      selectedUnpaidBillIds: paymentDetails.selectedUnpaidBillIds || []
+      selectedUnpaidBillIds: paymentDetails.selectedUnpaidBillIds || [],
+      // Add a flag to indicate this is an outstanding payment only
+      isOutstandingPaymentOnly: products.length === 0
     };
 
     console.log("Sending bill data:", completeBill);
 
-    // First check stock availability
-    for (const product of completeBill.products) {
-      const stockCheck = await Api.get(`/products/check-stock/${product.code}`, {
-        params: { unit: product.unit, quantity: product.quantity }
-      });
-      
-      if (!stockCheck.data.isAvailable) {
-        throw new Error(`Insufficient stock for ${product.name}`);
+    // Only check stock if there are products
+    if (products.length > 0) {
+      for (const product of completeBill.products) {
+        const stockCheck = await Api.get(`/products/check-stock/${product.code}`, {
+          params: { unit: product.unit, quantity: product.quantity }
+        });
+        
+        if (!stockCheck.data.isAvailable) {
+          throw new Error(`Insufficient stock for ${product.name}`);
+        }
       }
     }
 
