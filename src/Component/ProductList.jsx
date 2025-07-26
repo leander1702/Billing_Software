@@ -5,7 +5,7 @@ import { FiEdit2, FiTrash2, FiSearch, FiPlus, FiRefreshCw } from 'react-icons/fi
 import Api from '../services/api';
 import Swal from 'sweetalert2';
 
-function ProductList({ products, onAdd, onEdit, onRemove }) {
+function ProductList({ products, onAdd, onEdit, onRemove, transportCharge, onTransportChargeChange }) {
   const initialProduct = {
     code: '',
     name: '',
@@ -25,7 +25,8 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
     totalPrice: 0,
     gstAmount: 0,
     sgstAmount: 0,
-    basicPrice: 0
+    basicPrice: 0,
+    hsnCode: ''
   };
 
   const [product, setProduct] = useState(initialProduct);
@@ -36,6 +37,7 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
   const [isLoading, setIsLoading] = useState(false);
   const [nameSuggestions, setNameSuggestions] = useState([]);
   const [showNameSuggestions, setShowNameSuggestions] = useState(false);
+   const [localTransportCharge, setLocalTransportCharge] = useState(0);
 
   const unitTypes = [
     { value: 'piece', label: 'Pcs' },
@@ -56,6 +58,8 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
   const quantityInputRef = useRef(null);
   const addProductButtonRef = useRef(null);
   const priceInputRef = useRef(null);
+  const hsnCodeInputRef = useRef(null);
+  const transportChargeInputRef = useRef(null);
 
   // Fetch stock data
   useEffect(() => {
@@ -140,7 +144,8 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
           sgstAmount: sgstAmount,
           quantity: '',
           totalPrice: 0,
-          isManualPrice: false
+          isManualPrice: false,
+          hsnCode: productData.hsnCode || '' // Set HSN Code from product data
         }));
 
         quantityInputRef.current?.focus();
@@ -161,7 +166,8 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
         totalPrice: 0,
         gstAmount: 0,
         sgstAmount: 0,
-        isManualPrice: false
+        isManualPrice: false,
+        hsnCode: ''
       }));
       setAvailableUnits([]);
     } finally {
@@ -191,6 +197,51 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
     }
   };
 
+  useEffect(() => {
+    setLocalTransportCharge(transportCharge);
+  }, [transportCharge]);
+
+  const handleTransportChargeChange = (e) => {
+    let value = parseFloat(e.target.value);
+    
+    // Handle empty input or invalid values
+    if (isNaN(value)) {
+      value = 0;
+    }
+    
+    // Ensure value is not negative
+    value = Math.max(0, value);
+    
+    // Round to 2 decimal places
+    value = parseFloat(value.toFixed(2));
+    
+    setLocalTransportCharge(value);
+    onTransportChargeChange(value);
+  };
+
+  const handleTransportBlur = () => {
+    // If the field is empty or invalid, set it to 0
+    if (isNaN(localTransportCharge)) {
+      setLocalTransportCharge(0);
+      onTransportChargeChange(0);
+    }
+  };
+
+   useEffect(() => {
+    if (products.length === 0) {
+      setLocalTransportCharge(0);
+      onTransportChargeChange(0);
+    }
+  }, [products.length, onTransportChargeChange]);
+
+   const calculateCurrentBillTotal = () => {
+    return products.reduce((sum, item) => sum + item.totalPrice, 0);
+  };
+
+  const calculateGrandTotal = () => {
+    return calculateCurrentBillTotal() + transportCharge;
+  };
+
   // Handle unit change
   useEffect(() => {
     if (product.code && (product.selectedUnit || product.baseUnit)) {
@@ -214,10 +265,10 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    const numericFields = ['quantity', 'price', 'gst', 'sgst', 'basicPrice', 'mrpPrice'];
+    const numericFields = ['quantity', 'price', 'gst', 'sgst', 'basicPrice', 'mrpPrice', 'hsnCode'];
 
     let processedValue = value;
-    if (numericFields.includes(name)) {
+    if (numericFields.includes(name) && name !== 'hsnCode') {
       if (value.length > 1 && value.startsWith('0') && !value.startsWith('0.')) {
         processedValue = value.replace(/^0+/, '') || '0';
       }
@@ -292,81 +343,80 @@ function ProductList({ products, onAdd, onEdit, onRemove }) {
     }));
   };
 
-// Add this function to check stock before adding product
-const checkStockAvailability = async (productName, quantity, unit) => {
-  try {
-    const product = await Api.get(`/products/name/${productName}`);
-    if (!product.data) return { isAvailable: false, available: 0 };
+  const checkStockAvailability = async (productName, quantity, unit) => {
+    try {
+      const product = await Api.get(`/products/name/${productName}`);
+      if (!product.data) return { isAvailable: false, available: 0 };
 
-    const response = await Api.get(`/products/check-stock/${product.data.productCode}`, {
-      params: { unit, quantity }
-    });
+      const response = await Api.get(`/products/check-stock/${product.data.productCode}`, {
+        params: { unit, quantity }
+      });
 
-    return response.data;
-  } catch (err) {
-    console.error('Error checking stock:', err);
-    return { isAvailable: false, available: 0 };
-  }
-};
-
-const handleSubmit = async (e) => {
-  e.preventDefault();
-
-  if (!product.code || !product.quantity) {
-    toast.error("Product code and quantity are required!");
-    return;
-  }
-
-  const quantityValue = parseFloat(product.quantity);
-  if (isNaN(quantityValue) || quantityValue <= 0) {
-    toast.error("Please enter a valid quantity!");
-    return;
-  }
-
-  // Check stock availability
-  const stockCheck = await checkStockAvailability(
-    product.name,
-    quantityValue,
-    product.selectedUnit || product.baseUnit
-  );
-
-  if (!stockCheck.isAvailable) {
-    // Show SweetAlert popup with stock information
-    await Swal.fire({
-      title: 'Insufficient Stock',
-      html: `Only <b>${stockCheck.availableDisplay.toFixed(2)} ${product.selectedUnit || product.baseUnit}</b> available for <b>${product.name}</b>`,
-      icon: 'warning',
-      confirmButtonText: 'OK',
-      confirmButtonColor: '#3085d6',
-    });
-    return;
-  }
-
-  const newProduct = {
-    ...product,
-    id: Date.now(),
-    quantity: quantityValue,
-    price: parseFloat(product.price),
-    basicPrice: product.basicPrice,
-    gstAmount: product.gstAmount,
-    sgstAmount: product.sgstAmount,
-    totalPrice: product.totalPrice,
-    unit: product.selectedUnit || product.baseUnit,
-    isManualPrice: product.isManualPrice,
-    availableStock: stockCheck.available
+      return response.data;
+    } catch (err) {
+      console.error('Error checking stock:', err);
+      return { isAvailable: false, available: 0 };
+    }
   };
 
-  if (editingIndex !== null) {
-    onEdit(editingIndex, newProduct);
-    setEditingIndex(null);
-  } else {
-    onAdd(newProduct);
-  }
+  const handleSubmit = async (e) => {
+    e.preventDefault();
 
-  setProduct(initialProduct);
-  setNameSuggestions([]);
-  searchProductInputRef.current?.focus();
-};
+    if (!product.code || !product.quantity) {
+      toast.error("Product code and quantity are required!");
+      return;
+    }
+
+    const quantityValue = parseFloat(product.quantity);
+    if (isNaN(quantityValue) || quantityValue <= 0) {
+      toast.error("Please enter a valid quantity!");
+      return;
+    }
+
+    // Check stock availability
+    const stockCheck = await checkStockAvailability(
+      product.name,
+      quantityValue,
+      product.selectedUnit || product.baseUnit
+    );
+
+    if (!stockCheck.isAvailable) {
+      await Swal.fire({
+        title: 'Insufficient Stock',
+        html: `Only <b>${stockCheck.availableDisplay.toFixed(2)} ${product.selectedUnit || product.baseUnit}</b> available for <b>${product.name}</b>`,
+        icon: 'warning',
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#3085d6',
+      });
+      return;
+    }
+
+    const newProduct = {
+      ...product,
+      id: Date.now(),
+      quantity: quantityValue,
+      price: parseFloat(product.price),
+      basicPrice: product.basicPrice,
+      gstAmount: product.gstAmount,
+      sgstAmount: product.sgstAmount,
+      totalPrice: product.totalPrice,
+      unit: product.selectedUnit || product.baseUnit,
+      isManualPrice: product.isManualPrice,
+      availableStock: stockCheck.available,
+      hsnCode: product.hsnCode // Include HSN Code in the product
+    };
+
+    if (editingIndex !== null) {
+      onEdit(editingIndex, newProduct);
+      setEditingIndex(null);
+    } else {
+      onAdd(newProduct);
+    }
+
+    setProduct(initialProduct);
+    setNameSuggestions([]);
+    searchProductInputRef.current?.focus();
+  };
 
   const handleEdit = (index) => {
     const productToEdit = products[index];
@@ -394,7 +444,10 @@ const handleSubmit = async (e) => {
       item.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const calculateTotal = () => filteredProducts.reduce((sum, item) => sum + item.totalPrice, 0);
+  const calculateTotal = () => {
+    const productsTotal = filteredProducts.reduce((sum, item) => sum + item.totalPrice, 0);
+    return productsTotal + transportCharge;
+  };
 
   const getUnitLabel = (unitValue) => {
     const unit = unitTypes.find(u => u.value === unitValue);
@@ -486,12 +539,23 @@ const handleSubmit = async (e) => {
                       onClick={() => handleSelectNameSuggestion(item)}
                     >
                       <div className="font-medium">{item.productName}</div>
-                      {/* <div className="text-sm text-gray-600">{item.productCode}</div> */}
-                      {/* <div className="text-sm text-gray-500">₹{item.mrpPrice?.toFixed(2)}</div> */}
                     </div>
                   ))}
                 </div>
               )}
+            </div>
+
+            {/* HSN Code */}
+            <div className="col-span-1">
+              <label className="block text-xs font-medium text-gray-700 mb-1">HSN Code</label>
+              <input
+                type="text"
+                name="hsnCode"
+                value={product.hsnCode}
+                onChange={handleChange}
+                ref={hsnCodeInputRef}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+              />
             </div>
 
             {/* Unit Selection */}
@@ -608,6 +672,7 @@ const handleSubmit = async (e) => {
                 <th className="px-4 py-3 text-left border-b font-medium text-gray-700">#</th>
                 <th className="px-4 py-3 text-left border-b font-medium text-gray-700">Code</th>
                 <th className="px-4 py-3 text-left border-b font-medium text-gray-700">Name</th>
+                <th className="px-4 py-3 text-left border-b font-medium text-gray-700">HSN Code</th>
                 <th className="px-4 py-3 text-left border-b font-medium text-gray-700">MRP</th>
                 <th className="px-4 py-3 text-left border-b font-medium text-gray-700">Basic Price</th>
                 <th className="px-4 py-3 text-left border-b font-medium text-gray-700">GST % /<span className='flex'>GST Amt</span></th>
@@ -632,6 +697,7 @@ const handleSubmit = async (e) => {
                       <td className="px-4 py-3">{index + 1}</td>
                       <td className="px-4 py-3 font-medium">{item.code}</td>
                       <td className="px-4 py-3">{item.name}</td>
+                      <td className="px-4 py-3">{item.hsnCode}</td>
                       <td className="px-4 py-3">₹{item.mrpPrice.toFixed(2)}</td>
                       <td className="px-4 py-3">₹{basicPriceTotal.toFixed(2)}</td>
                       <td className="px-4 py-3">{item.gst}% <span className='flex'>₹{gstAmountTotal.toFixed(2)}</span></td>
@@ -675,32 +741,54 @@ const handleSubmit = async (e) => {
           </table>
         </div>
 
-        {/* Footer with total */}
-        {filteredProducts.length > 0 && (
-          <div className="bg-gray-50 px-6 py-3 border-t sticky bottom-0">
-            <div className="flex flex-col sm:flex-row justify-between items-center gap-2">
-              <span className="text-sm text-gray-600">
-                {filteredProducts.length} {filteredProducts.length === 1 ? 'item' : 'items'}
+      {/* Transport Charge Input */}
+     <div className="bg-gray-50 px-6 py-3 border-t">
+        <div className="flex items-center gap-4 w-full">
+          <label className="text-sm font-medium text-gray-700 whitespace-nowrap">Transport Charge:</label>
+          <input
+            type="number"
+            value={localTransportCharge}
+            onChange={handleTransportChargeChange}
+            onBlur={handleTransportBlur}
+            min="0"
+            step="0.01"
+            className="w-32 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+            ref={transportChargeInputRef}
+          />
+        </div>
+      </div>
+
+      {/* Footer with total */}
+      {filteredProducts.length > 0 && (
+        <div className="bg-gray-50 px-6 py-3 border-t sticky bottom-0">
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-2">
+            <span className="text-sm text-gray-600">
+              {filteredProducts.length} {filteredProducts.length === 1 ? 'item' : 'items'}
+            </span>
+            <div className="flex items-center gap-4">
+              <span className="text-sm font-medium text-gray-700">
+                Subtotal: ₹{filteredProducts.reduce((sum, item) => sum + (item.basicPrice * item.quantity), 0).toFixed(2)}
               </span>
-              <div className="flex items-center gap-4">
+              <span className="text-sm font-medium text-gray-700">
+                GST: ₹{filteredProducts.reduce((sum, item) => sum + (item.gstAmount * item.quantity), 0).toFixed(2)}
+              </span>
+              <span className="text-sm font-medium text-gray-700">
+                SGST: ₹{filteredProducts.reduce((sum, item) => sum + (item.sgstAmount * item.quantity), 0).toFixed(2)}
+              </span>
+              {transportCharge > 0 && (
                 <span className="text-sm font-medium text-gray-700">
-                  Subtotal: ₹{filteredProducts.reduce((sum, item) => sum + (item.basicPrice * item.quantity), 0).toFixed(2)}
+                  Transport: ₹{transportCharge.toFixed(2)}
                 </span>
-                <span className="text-sm font-medium text-gray-700">
-                  GST: ₹{filteredProducts.reduce((sum, item) => sum + (item.gstAmount * item.quantity), 0).toFixed(2)}
-                </span>
-                <span className="text-sm font-medium text-gray-700">
-                  SGST: ₹{filteredProducts.reduce((sum, item) => sum + (item.sgstAmount * item.quantity), 0).toFixed(2)}
-                </span>
-                <span className="text-lg font-bold text-blue-600">
-                  Grand Total: ₹{calculateTotal().toFixed(2)}
-                </span>
-              </div>
+              )}
+              <span className="text-lg font-bold text-blue-600">
+                Grand Total: ₹{calculateGrandTotal().toFixed(2)}
+              </span>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
+    </div> 
   );
 }
 

@@ -29,6 +29,7 @@ const BillingSystem = ({
   const [isSaving, setIsSaving] = useState(false);
   const [isCheckingCustomer, setIsCheckingCustomer] = useState(false);
   const [customerOutstandingCredit, setCustomerOutstandingCredit] = useState(0);
+  const [transportCharge, setTransportCharge] = useState(0);
 
   const printRef = useRef(null);
   const paymentRef = useRef(null);
@@ -44,6 +45,7 @@ const BillingSystem = ({
     const billData = {
       customer,
       products,
+      transportCharge,
       productSubtotal: calculateProductsSubtotal(),
       currentBillTotal: calculateCurrentBillTotal(),
       previousOutstandingCredit: customerOutstandingCredit,
@@ -54,44 +56,44 @@ const BillingSystem = ({
     toast.success('Print command sent (check console for bill data)!');
   };
 
-const handleCustomerSubmit = async (customerData) => {
-  try {
-    setIsCheckingCustomer(true);
-    const res = await Api.get(`/customers`, {
-      params: { contact: customerData.contact }
-    });
-
-    // Axios throws errors for non-2xx responses, so we catch 404 specifically
-    toast.info(`Existing customer found: ${res.data.name}`);
-    setCustomer({
-      id: res.data.id,
-      name: res.data.name,
-      contact: res.data.contact,
-      aadhaar: res.data.aadhaar || '',
-      location: res.data.location || '',
-    });
-    setCustomerOutstandingCredit(res.data.outstandingCredit || 0);
-    
-  } catch (error) {
-    if (error.response?.status === 404) {
-      setCustomer({
-        id: '',
-        name: customerData.name,
-        contact: customerData.contact,
-        aadhaar: customerData.aadhaar,
-        location: customerData.location,
+  const handleCustomerSubmit = async (customerData) => {
+    try {
+      setIsCheckingCustomer(true);
+      const res = await Api.get(`/customers`, {
+        params: { contact: customerData.contact }
       });
-      setCustomerOutstandingCredit(0);
-      toast.info('New customer - please enter details to save.');
-      customerNameFocusRef.current?.focus();
-    } else {
-      console.error('Failed to fetch customer details:', error);
-      throw new Error('Failed to fetch customer details');
+
+      // Axios throws errors for non-2xx responses, so we catch 404 specifically
+      toast.info(`Existing customer found: ${res.data.name}`);
+      setCustomer({
+        id: res.data.id,
+        name: res.data.name,
+        contact: res.data.contact,
+        aadhaar: res.data.aadhaar || '',
+        location: res.data.location || '',
+      });
+      setCustomerOutstandingCredit(res.data.outstandingCredit || 0);
+
+    } catch (error) {
+      if (error.response?.status === 404) {
+        setCustomer({
+          id: '',
+          name: customerData.name,
+          contact: customerData.contact,
+          aadhaar: customerData.aadhaar,
+          location: customerData.location,
+        });
+        setCustomerOutstandingCredit(0);
+        toast.info('New customer - please enter details to save.');
+        customerNameFocusRef.current?.focus();
+      } else {
+        console.error('Failed to fetch customer details:', error);
+        throw new Error('Failed to fetch customer details');
+      }
+    } finally {
+      setIsCheckingCustomer(false);
     }
-  } finally {
-    setIsCheckingCustomer(false);
-  }
-};
+  };
   const handleAddProduct = (product) => {
     setProducts([...products, product]);
   };
@@ -109,38 +111,38 @@ const handleCustomerSubmit = async (customerData) => {
   };
 
   const calculateSubtotal = () =>
-    products.reduce((sum, item) => {
-      const baseAmount = (item.basicPrice * item.quantity);
-      return sum + (baseAmount );
-    }, 0);
+  products.reduce((sum, item) => {
+    const baseAmount = (item.basicPrice || 0) * (item.quantity || 0);
+    return sum + baseAmount;
+  }, 0);
 
-  const calculateGST = () =>
-    products.reduce((sum, item) => {
-     const baseAmount =  (item.gstAmount * item.quantity);
-      // const gstAmount = (baseAmount * (item.gst*item.quantity)) / 100;
-       return sum + (baseAmount );
-    }, 0);
+const calculateGST = () =>
+  products.reduce((sum, item) => {
+    const baseAmount = (item.gstAmount || 0) * (item.quantity || 0);
+    return sum + baseAmount;
+  }, 0);
 
-     const calculateSGST = () =>
-    products.reduce((sum, item) => {
-     const baseAmount =(item.sgstAmount * item.quantity);
-      // const gstAmount = (baseAmount * (item.gst*item.quantity)) / 100;
-       return sum + (baseAmount );
-    }, 0);
+const calculateSGST = () =>
+  products.reduce((sum, item) => {
+    const baseAmount = (item.sgstAmount || 0) * (item.quantity || 0);
+    return sum + baseAmount;
+  }, 0);
 
-  const calculateProductsSubtotal = () => calculateSubtotal() + (calculateGST() + calculateSGST());
+const calculateProductsSubtotal = () => {
+  const subtotal = calculateSubtotal();
+  const gst = calculateGST();
+  const sgst = calculateSGST();
+  return subtotal + gst + sgst;
+};
 
+const calculateCurrentBillTotal = () => {
+  const subtotal = calculateProductsSubtotal();
+  return subtotal + (transportCharge || 0);
+};
 
-  const calculateCurrentBillTotal = () => {
-    return calculateProductsSubtotal();
-  };
-
-  const calculateGrandTotal = () => {
-    // This grand total is for the combined sum displayed in BillSummary.
-    // The payment modal will use `currentBillTotal` for the new items
-    // and `partialOutstandingPayment` for selected old items.
-    return calculateCurrentBillTotal() + customerOutstandingCredit;
-  };
+const calculateGrandTotal = () => {
+  return calculateCurrentBillTotal() + (customerOutstandingCredit || 0);
+};
 
   const handleNewCustomer = () => {
     setCustomer({ id: '', name: '', contact: '', aadhaar: '', location: '' });
@@ -178,23 +180,25 @@ const handleCustomerSubmit = async (customerData) => {
     setShowPaymentModal(true);
   };
 
-const handlePaymentComplete = async (paymentDetails) => {
+  const handlePaymentComplete = async (paymentDetails) => {
   if (!currentBill) {
     toast.error('No bill data available for payment. Please try again.');
     return;
   }
 
   try {
-    // Calculate totals
-    const productSubtotal = currentBill.products.reduce(
-      (sum, product) => sum + (product.totalPrice || 0), 
-      0
-    );
+    // Calculate all values with proper fallbacks
+    const productSubtotal = Number(calculateProductsSubtotal().toFixed(2)) || 0;
+    const currentBillTotal = Number(calculateCurrentBillTotal().toFixed(2)) || 0;
+    const grandTotal = Number(calculateGrandTotal().toFixed(2)) || 0;
+    const outstandingPayment = Number(paymentDetails.selectedOutstandingPayment || 0);
+    const currentPayment = Number(paymentDetails.currentBillPayment || 0);
+    const unpaidAmount = grandTotal - (outstandingPayment + currentPayment);
 
     // Prepare complete bill data
     const completeBill = {
       customer: {
-        id: currentBill.customer.id,
+        id: currentBill.customer.id || null,
         name: currentBill.customer.name || '',
         contact: currentBill.customer.contact || '',
         aadhaar: currentBill.customer.aadhaar || '',
@@ -203,18 +207,27 @@ const handlePaymentComplete = async (paymentDetails) => {
       products: currentBill.products.map(p => ({
         name: p.name,
         code: p.code,
-        price: p.price,
-        quantity: p.quantity,
+        price: Number(p.price || 0),
+        quantity: Number(p.quantity || 0),
         unit: p.unit,
-        totalPrice: p.totalPrice,
-        discount: p.discount || 0
+        totalPrice: Number(p.totalPrice || 0),
+        discount: Number(p.discount || 0),
+        basicPrice: Number(p.basicPrice || 0),
+        gst: Number(p.gst || 0),
+        sgst: Number(p.sgst || 0),
+        gstAmount: Number(p.gstAmount || 0),
+        sgstAmount: Number(p.sgstAmount || 0),
+        hsnCode: p.hsnCode || ''
       })),
       productSubtotal,
-      currentBillTotal: productSubtotal,
+      transportCharge: Number(transportCharge || 0),
+      currentBillTotal,
+      grandTotal,
+      unpaidAmountForThisBill: Math.max(0, unpaidAmount),
       payment: {
         method: paymentDetails.method || 'cash',
-        currentBillPayment: paymentDetails.currentBillPayment || 0,
-        selectedOutstandingPayment: paymentDetails.selectedOutstandingPayment || 0,
+        currentBillPayment: currentPayment,
+        selectedOutstandingPayment: outstandingPayment,
         transactionId: paymentDetails.transactionId || ''
       },
       billNumber: currentBill.billNumber || `BILL-${Date.now()}`,
@@ -235,62 +248,6 @@ const handlePaymentComplete = async (paymentDetails) => {
     }
 
     // Then create the bill
-    const response = await Api.post('/bills', completeBill);
-    
-    console.log("Bill created successfully:", response.data);
-    toast.success('Payment successful and bill saved!');
-    handleFinalClose();
-
-  } catch (error) {
-    console.error('Error during payment:', error);
-    
-    if (error.response) {
-      console.error('Server response:', error.response.data);
-      toast.error(error.response.data.message || 'Payment failed');
-    } else {
-      toast.error(error.message || 'Failed to complete payment');
-    }
-  }
-
-  try {
-    // Calculate productSubtotal from products (sum of totalPrice)
-    const productSubtotal = currentBill.products.reduce(
-      (sum, product) => sum + (product.totalPrice || 0), 
-      0
-    );
-
-    // Prepare the complete bill data with all required fields
-    const completeBill = {
-      customer: {
-        id: currentBill.customer.id,
-        name: currentBill.customer.name || '',
-        contact: currentBill.customer.contact || '',
-        aadhaar: currentBill.customer.aadhaar || '',
-        location: currentBill.customer.location || ''
-      },
-      products: currentBill.products.map(p => ({
-        name: p.name,
-        code: p.code,
-        price: p.price,
-        quantity: p.quantity,
-        unit: p.unit,
-        totalPrice: p.totalPrice,
-        discount: p.discount || 0
-      })),
-      productSubtotal: productSubtotal,
-      currentBillTotal: productSubtotal, // Same as subtotal since we removed GST
-      payment: {
-        method: paymentDetails.method,
-        currentBillPayment: paymentDetails.currentBillPayment,
-        selectedOutstandingPayment: paymentDetails.selectedOutstandingPayment || 0,
-        transactionId: paymentDetails.transactionId || ''
-      },
-      billNumber: currentBill.billNumber,
-      selectedUnpaidBillIds: paymentDetails.selectedUnpaidBillIds || []
-    };
-
-    console.log("Sending bill data:", completeBill);
-
     const response = await Api.post('/bills', completeBill);
     
     console.log("Bill created successfully:", response.data);
@@ -324,9 +281,9 @@ const handlePaymentComplete = async (paymentDetails) => {
   };
 
   const handleClosePaymentModal = () => {
-  setShowPaymentModal(false);
-  // Don't reset any other state here
-};
+    setShowPaymentModal(false);
+    // Don't reset any other state here
+  };
 
   return (
     <div className="bg-gradient-to-br from-blue-50 to-blue-100 font-inter max-h-screen">
@@ -338,6 +295,8 @@ const handlePaymentComplete = async (paymentDetails) => {
               onAdd={handleAddProduct}
               onEdit={handleEditProduct}
               onRemove={handleRemoveProduct}
+              transportCharge={transportCharge}
+              onTransportChargeChange={setTransportCharge}
               onFocusProductSearch={onFocusProductSearch}
               onFocusProductCode={onFocusProductCode}
               onFocusQuantity={onFocusQuantity}
@@ -358,6 +317,7 @@ const handlePaymentComplete = async (paymentDetails) => {
               customerOutstandingCredit={customerOutstandingCredit}
               currentBillTotal={calculateCurrentBillTotal()}
               grandTotal={calculateGrandTotal()}
+              transportCharge={transportCharge}
               onProceedToPayment={handleProceedToPayment}
               onPrint={handlePrint}
               onTriggerPrint={printRef}
@@ -370,7 +330,7 @@ const handlePaymentComplete = async (paymentDetails) => {
       {showPaymentModal && currentBill && (
         <PaymentModal
           currentBillData={currentBill}
-            onClose={handleClosePaymentModal} 
+          onClose={handleClosePaymentModal}
           onComplete={handlePaymentComplete}
           isSaving={isSaving}
         />
