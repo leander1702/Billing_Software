@@ -128,57 +128,60 @@ function CustomerDetails({ customer, onSubmit, onFocusCustomerName, onFocusPhone
     setFormData(prev => ({ ...prev, location: e.target.value }));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const { name, contact, aadhaar, location } = formData;
+ const handleSubmit = async (e) => {
+  e.preventDefault();
+  const { name, contact, aadhaar, location } = formData;
 
-    if (!name.trim()) {
-      toast.error('Please enter customer name');
+  if (!name.trim()) {
+    toast.error('Please enter customer name');
+    return;
+  }
+  if (contact.length !== 10) {
+    toast.error('Please enter 10-digit contact number');
+    return;
+  }
+
+  try {
+    setIsLoading(true);
+
+    if (foundInDB) {
+      onSubmit(formData);
       return;
     }
-    if (contact.length !== 10) {
-      toast.error('Please enter 10-digit contact number');
-      return;
-    }
 
-    try {
-      setIsLoading(true);
+    // Save new customer
+    const response = await Api.post('/customers', {
+      name,
+      contact,
+      aadhaar: aadhaar.replace(/-/g, ''),
+      location
+    });
 
-      if (foundInDB) {
-        onSubmit(formData);
-        return;
-      }
+    const data = response.data;
+    toast.success('Customer saved successfully');
+    
+    // Update form data with the response from server
+    setFormData({
+      name: data.name || '',
+      contact: data.contact || '',
+      aadhaar: data.aadhaar || '',
+      location: data.location || ''
+    });
+    
+    // Mark as found in DB and disable editing
+    setFoundInDB(true);
+    setIsEditing(false);
+    
+    // Call the onSubmit prop with the new customer data
+    onSubmit(data);
 
-      const res = await Api.post('/customers', {
-        name,
-        contact,
-        aadhaar: aadhaar.replace(/-/g, ''),
-        location
-      }, {
-        headers: { 'Content-Type': 'application/json' }
-      });
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP error! status: ${res.status}`);
-      }
-
-      const data = await res.json();
-      toast.success('Customer saved successfully');
-      setFormData({
-        name: data.name || '',
-        contact: data.contact || '',
-        aadhaar: data.aadhaar || '',
-        location: data.location || ''
-      });
-      setFoundInDB(true);
-      setIsEditing(false);
-      onSubmit(data); // Call the onSubmit prop with the new customer data
-    } catch (err) {
-      toast.error(err.message || 'Failed to save customer');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  } catch (err) {
+    console.error('Error saving customer:', err);
+    toast.error(err.response?.data?.message || 'Failed to save customer');
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   return (
     <div className="bg-white p-3 border border-gray-200 rounded-sm">
