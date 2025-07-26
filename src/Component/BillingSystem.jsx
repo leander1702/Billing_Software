@@ -53,45 +53,43 @@ const BillingSystem = ({
     console.log("Printing bill", billData);
     toast.success('Print command sent (check console for bill data)!');
   };
-
-const handleCustomerSubmit = async (customerData) => {
-  try {
-    setIsCheckingCustomer(true);
-    const res = await Api.get(`/customers`, {
-      params: { contact: customerData.contact }
-    });
-
-    // Axios throws errors for non-2xx responses, so we catch 404 specifically
-    toast.info(`Existing customer found: ${res.data.name}`);
-    setCustomer({
-      id: res.data.id,
-      name: res.data.name,
-      contact: res.data.contact,
-      aadhaar: res.data.aadhaar || '',
-      location: res.data.location || '',
-    });
-    setCustomerOutstandingCredit(res.data.outstandingCredit || 0);
-    
-  } catch (error) {
-    if (error.response?.status === 404) {
-      setCustomer({
-        id: '',
-        name: customerData.name,
-        contact: customerData.contact,
-        aadhaar: customerData.aadhaar,
-        location: customerData.location,
-      });
-      setCustomerOutstandingCredit(0);
-      toast.info('New customer - please enter details to save.');
-      customerNameFocusRef.current?.focus();
-    } else {
-      console.error('Failed to fetch customer details:', error);
-      throw new Error('Failed to fetch customer details');
+  const handleCustomerSubmit = async (customerData) => {
+    try {
+      setIsCheckingCustomer(true);
+      const res = await fetch(`http://localhost:5000/api/customers?contact=${customerData.contact}`);
+      if (!res.ok) {
+        if (res.status === 404) {
+          setCustomer({
+            id: '',
+            name: customerData.name,
+            contact: customerData.contact,
+            aadhaar: customerData.aadhaar,
+            location: customerData.location,
+          });
+          setCustomerOutstandingCredit(0);
+          toast.info('New customer - please enter details to save.');
+          customerNameFocusRef.current?.focus();
+        } else {
+          throw new Error('Failed to fetch customer details');
+        }
+      } else {
+        const existingCustomer = await res.json();
+        toast.info(`Existing customer found: ${existingCustomer.name}`);
+        setCustomer({
+          id: existingCustomer.id,
+          name: existingCustomer.name,
+          contact: existingCustomer.contact,
+          aadhaar: existingCustomer.aadhaar || '',
+          location: existingCustomer.location || '',
+        });
+        // This is correct: Set the outstanding credit from the fetched customer data
+        setCustomerOutstandingCredit(existingCustomer.outstandingCredit || 0);
+      }
+    } finally {
+      setIsCheckingCustomer(false);
     }
-  } finally {
-    setIsCheckingCustomer(false);
-  }
-};
+  };
+
   const handleAddProduct = (product) => {
     setProducts([...products, product]);
   };
@@ -111,21 +109,21 @@ const handleCustomerSubmit = async (customerData) => {
   const calculateSubtotal = () =>
     products.reduce((sum, item) => {
       const baseAmount = (item.basicPrice * item.quantity);
-      return sum + (baseAmount );
+      return sum + (baseAmount);
     }, 0);
 
   const calculateGST = () =>
     products.reduce((sum, item) => {
-     const baseAmount =  (item.gstAmount * item.quantity);
+      const baseAmount = (item.gstAmount * item.quantity);
       // const gstAmount = (baseAmount * (item.gst*item.quantity)) / 100;
-       return sum + (baseAmount );
+      return sum + (baseAmount);
     }, 0);
 
-     const calculateSGST = () =>
+  const calculateSGST = () =>
     products.reduce((sum, item) => {
-     const baseAmount =(item.sgstAmount * item.quantity);
+      const baseAmount = (item.sgstAmount * item.quantity);
       // const gstAmount = (baseAmount * (item.gst*item.quantity)) / 100;
-       return sum + (baseAmount );
+      return sum + (baseAmount);
     }, 0);
 
   const calculateProductsSubtotal = () => calculateSubtotal() + (calculateGST() + calculateSGST());
@@ -325,7 +323,7 @@ const handlePaymentComplete = async (paymentDetails) => {
 
   return (
     <div className="bg-gradient-to-br from-blue-50 to-blue-100 font-inter max-h-screen">
-      <div className="mx-auto p-2 max-w-full">
+      <div className="mx-auto p-1 max-w-full">
         <div className="flex flex-col lg:flex-row gap-1">
           <div className="lg:w-3/4">
             <ProductList
@@ -340,6 +338,7 @@ const handlePaymentComplete = async (paymentDetails) => {
             />
           </div>
           <div className="lg:w-1/4 flex flex-col gap-1">
+            {/* <CashierDetails /> */}
             <CustomerDetails
               customer={customer}
               onSubmit={handleCustomerSubmit}
