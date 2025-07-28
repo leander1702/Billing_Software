@@ -7,81 +7,7 @@ import { toast } from 'react-toastify';
 import Api from '../services/api';
 import * as ReactDOMClient from 'react-dom/client';
 import CashierDetails from './CashierDetails';
-
-// Temporary PrintableBill component (define this in a separate file if preferred)
-const PrintableBill = ({ billData, companyDetails }) => {
-  return (
-    <div className="p-4 max-w-md mx-auto">
-      <div className="text-center mb-4">
-        <h1 className="text-2xl font-bold">{companyDetails?.name || 'Company Name'}</h1>
-        <p>{companyDetails?.address || 'Company Address'}</p>
-        <p>GST: {companyDetails?.gst || 'GST Number'}</p>
-      </div>
-
-      <div className="border-b-2 border-black mb-4">
-        <h2 className="text-xl font-semibold">INVOICE</h2>
-        <p>Bill No: {billData.billNumber}</p>
-        <p>Date: {new Date(billData.date).toLocaleDateString()}</p>
-      </div>
-
-      <div className="mb-4">
-        <h3 className="font-semibold">Customer Details:</h3>
-        <p>Name: {billData.customer.name}</p>
-        <p>Contact: {billData.customer.contact}</p>
-      </div>
-
-      {billData.products?.length > 0 && (
-        <table className="w-full mb-4">
-          <thead>
-            <tr className="border-b border-black">
-              <th className="text-left">Item</th>
-              <th className="text-right">Qty</th>
-              <th className="text-right">Price</th>
-              <th className="text-right">Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            {billData.products.map((product, index) => (
-              <tr key={index} className="border-b border-gray-200">
-                <td>{product.name}</td>
-                <td className="text-right">{product.quantity} {product.unit}</td>
-                <td className="text-right">{product.price.toFixed(2)}</td>
-                <td className="text-right">{(product.quantity * product.price).toFixed(2)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-
-      <div className="border-t-2 border-black pt-2">
-        {billData.transportCharge > 0 && (
-          <div className="flex justify-between">
-            <span>Transport Charge:</span>
-            <span>{billData.transportCharge.toFixed(2)}</span>
-          </div>
-        )}
-        <div className="flex justify-between">
-          <span>Subtotal:</span>
-          <span>{billData.productSubtotal.toFixed(2)}</span>
-        </div>
-        {billData.previousOutstandingCredit > 0 && (
-          <div className="flex justify-between">
-            <span>Previous Outstanding:</span>
-            <span>{billData.previousOutstandingCredit.toFixed(2)}</span>
-          </div>
-        )}
-        <div className="flex justify-between font-bold">
-          <span>Grand Total:</span>
-          <span>{billData.grandTotal.toFixed(2)}</span>
-        </div>
-      </div>
-
-      <div className="mt-8 text-center">
-        <p>Thank you for your business!</p>
-      </div>
-    </div>
-  );
-};
+import PrintableBill from './PrintableBill';
 
 const BillingSystem = ({
   onFocusProductSearch,
@@ -371,17 +297,21 @@ const handlePaymentComplete = async (paymentDetails) => {
   };
 
   try {
-    const productSubtotal = Math.round(calculateProductsSubtotal());
-    const currentBillTotal = Math.round(calculateCurrentBillTotal());
-    const grandTotal = Math.round(calculateGrandTotal());
-    const outstandingPayment = Math.round((paymentDetails.selectedOutstandingPayment));
-    const currentPayment = Math.round((paymentDetails.currentBillPayment));
+    // Calculate all required amounts
+    const productSubtotal = calculateSubtotal();
+    const totalGst = calculateGST();
+    const totalSgst = calculateSGST();
+    const productTotalWithTax = calculateProductsSubtotal();
+    const currentBillTotal = calculateCurrentBillTotal();
+    const grandTotal = calculateGrandTotal();
+    
+    const outstandingPayment = Math.round(paymentDetails.selectedOutstandingPayment);
+    const currentPayment = Math.round(paymentDetails.currentBillPayment);
     const unpaidAmountForThisBill = grandTotal - (outstandingPayment + currentPayment);
 
-    // Define whether this is a new bill with products or just an outstanding payment
     const isNewBillPresent = products.length > 0;
 
-    // Prepare complete bill data
+    // Prepare complete bill data with all tax and charge details
     const completeBill = {
       customer: {
         id: currentBill.customer.id || null,
@@ -394,23 +324,27 @@ const handlePaymentComplete = async (paymentDetails) => {
         products: currentBill.products.map(p => ({
           name: p.name,
           code: p.code,
-          price: Number(p.price || 0),
-          quantity: Number(p.quantity || 0),
+          mrpPrice:Number(p.mrpPrice),
+          price: Number(p.price ),
+          quantity: Number(p.quantity ),
           unit: p.unit,
-          totalPrice: Number(p.totalPrice || 0),
-          discount: Number(p.discount || 0),
-          basicPrice: Number(p.basicPrice || 0),
-          gst: Number(p.gst || 0),
-          sgst: Number(p.sgst || 0),
-          gstAmount: Number(p.gstAmount || 0),
-          sgstAmount: Number(p.sgstAmount || 0),
-          hsnCode: p.hsnCode || ''
+          totalPrice: Number(p.totalPrice ),
+          discount: Number(p.discount ),
+          basicPrice: Number(p.basicPrice ),
+          gst: Number(p.gst ),
+          sgst: Number(p.sgst),
+          gstAmount: Number(p.gstAmount),
+          sgstAmount: Number(p.sgstAmount),
+          hsnCode: p.hsnCode
         }))
       }),
-      productSubtotal,
       transportCharge: Number(transportCharge || 0),
-      currentBillTotal,
-      grandTotal,
+      productSubtotal: productSubtotal,
+      totalGst: totalGst,
+      totalSgst: totalSgst,
+      productTotalWithTax: productTotalWithTax,
+      currentBillTotal: currentBillTotal,
+      grandTotal: grandTotal,
       unpaidAmountForThisBill: Math.max(0, unpaidAmountForThisBill),
       payment: {
         method: paymentDetails.method || 'cash',
@@ -424,12 +358,7 @@ const handlePaymentComplete = async (paymentDetails) => {
       cashier
     };
 
-    // Determine the API endpoint based on whether this is a new bill
-    const apiUrl = isNewBillPresent 
-      ? '/bills' 
-      : '/bills/settle-outstanding';
-
-    // Send the request
+    const apiUrl = isNewBillPresent ? '/bills' : '/bills/settle-outstanding';
     const response = await Api.post(apiUrl, completeBill);
 
     if (response.data.success) {
