@@ -108,7 +108,7 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge, onTra
 
         const selectedUnit = product.selectedUnit || productData.baseUnit;
         let price = productData.mrp || 0;
-
+        
         if (selectedUnit === productData.secondaryUnit) {
           price = productData.mrp / productData.conversionRate;
           price = Math.round(price * 10) / 10;
@@ -117,8 +117,8 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge, onTra
         const gstPercentage = productData.gst || 0;
         const sgstPercentage = productData.sgst || 0;
         const totalTaxPercentage = gstPercentage + sgstPercentage;
-
-        const basicPrice = totalTaxPercentage > 0
+        
+        const basicPrice = totalTaxPercentage > 0 
           ? price / (1 + (totalTaxPercentage / 100))
           : price;
 
@@ -189,7 +189,7 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge, onTra
   const handleNameChange = (e) => {
     const { value } = e.target;
     setProduct(prev => ({ ...prev, name: value }));
-
+    
     if (value.length > 1) {
       fetchProductSuggestions(value);
     } else {
@@ -292,8 +292,8 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge, onTra
       const gstPercentage = product.gst || 0;
       const sgstPercentage = product.sgst || 0;
       const totalTaxPercentage = gstPercentage + sgstPercentage;
-
-      const basicPrice = totalTaxPercentage > 0
+      
+      const basicPrice = totalTaxPercentage > 0 
         ? priceValue / (1 + (totalTaxPercentage / 100))
         : priceValue;
 
@@ -314,8 +314,8 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge, onTra
       const sgstValue = name === 'sgst' ? parseFloat(processedValue) || 0 : product.sgst;
       const priceValue = parseFloat(product.price) || 0;
       const totalTaxPercentage = gstValue + sgstValue;
-
-      const basicPrice = totalTaxPercentage > 0
+      
+      const basicPrice = totalTaxPercentage > 0 
         ? priceValue / (1 + (totalTaxPercentage / 100))
         : priceValue;
 
@@ -475,10 +475,10 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge, onTra
             </div>
             <button
               type="submit"
-              className={`px-4 py-1 text-sm rounded-sm flex items-center gap-2 ${editingIndex !== null
-                ? 'bg-yellow-500 hover:bg-yellow-600'
-                : 'bg-blue-600 hover:bg-blue-700'
-                } text-white transition-colors`}
+              className={`px-4 py-1 text-sm rounded-sm flex items-center gap-2 ${editingIndex !== null 
+                  ? 'bg-yellow-500 hover:bg-yellow-600' 
+                  : 'bg-blue-600 hover:bg-blue-700'
+              } text-white transition-colors`}
               ref={addProductButtonRef}
               disabled={isLoading}
             >
@@ -553,7 +553,7 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge, onTra
                 value={product.hsnCode}
                 onChange={handleChange}
                 ref={hsnCodeInputRef}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                className="no-arrows w-full px-3 py-1 text-sm border border-gray-300 rounded-sm focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
 
@@ -663,13 +663,8 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge, onTra
       </div>
 
       {/* Products Table */}
-      <div className="flex-1 relative overflow-hidden bg-white border border-gray-200 rounded-sm shadow-sm">
-        <div className="overflow-x-auto h-full"
-          style={{
-            maxHeight: 'calc(100vh - 350px)', // Adjust this value as needed
-            marginBottom: '80px' // Add space for the fixed footer
-          }}
-        >
+      <div className="flex-1 bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+        <div className="overflow-x-auto" style={{ maxHeight: 'calc(100vh - 250px)' }}>
           <table className="min-w-full border-collapse text-sm">
             <thead className="bg-gray-100 sticky top-0">
               <tr>
@@ -735,7 +730,7 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge, onTra
               ) : (
                 <tr>
                   <td colSpan="14" className="px-4 py-8 text-center text-gray-500">
-                    {products.length > 0
+                    {products.length > 0 
                       ? 'No products match your search'
                       : 'No products added yet. Start by adding products above.'}
                   </td>
@@ -755,7 +750,7 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge, onTra
             onBlur={handleTransportBlur}
             min="0"
             step="0.01"
-            className="w-32 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+            className="w-32 no-arrows px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
             ref={transportChargeInputRef}
           />
         </div>
