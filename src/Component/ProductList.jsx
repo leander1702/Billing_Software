@@ -5,7 +5,8 @@ import { FiEdit2, FiTrash2, FiSearch, FiPlus, FiRefreshCw } from 'react-icons/fi
 import Api from '../services/api';
 import Swal from 'sweetalert2';
 
-function ProductList({ products, onAdd, onEdit, onRemove, transportCharge, onTransportChargeChange }) {
+function ProductList({ products, onAdd, onEdit, onRemove, transportCharge ,
+  onTransportChargeChange = (value) => { }, }) {
   const initialProduct = {
     code: '',
     name: '',
@@ -37,7 +38,7 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge, onTra
   const [isLoading, setIsLoading] = useState(false);
   const [nameSuggestions, setNameSuggestions] = useState([]);
   const [showNameSuggestions, setShowNameSuggestions] = useState(false);
-   const [localTransportCharge, setLocalTransportCharge] = useState(0);
+  const [localTransportCharge, setLocalTransportCharge] = useState(transportCharge);
 
   const unitTypes = [
     { value: 'piece', label: 'Pcs' },
@@ -202,39 +203,36 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge, onTra
   }, [transportCharge]);
 
   const handleTransportChargeChange = (e) => {
-    let value = parseFloat(e.target.value);
-    
-    // Handle empty input or invalid values
-    if (isNaN(value)) {
-      value = 0;
-    }
-    
-    // Ensure value is not negative
-    value = Math.max(0, value);
-    
-    // Round to 2 decimal places
-    value = parseFloat(value.toFixed(2));
-    
+    let value = parseFloat(e.target.value) || 0;
+    value = Math.max(0, value); // Ensure non-negative
+    value = parseFloat(value.toFixed(2)); // Round to 2 decimal places
+
     setLocalTransportCharge(value);
-    onTransportChargeChange(value);
+
+    // Safely call the callback (if provided)
+    if (typeof onTransportChargeChange === 'function') {
+      onTransportChargeChange(value);
+    }
   };
 
   const handleTransportBlur = () => {
-    // If the field is empty or invalid, set it to 0
     if (isNaN(localTransportCharge)) {
-      setLocalTransportCharge(0);
-      onTransportChargeChange(0);
+      const value = 0;
+      setLocalTransportCharge(value);
+      if (typeof onTransportChargeChange === 'function') {
+        onTransportChargeChange(value);
+      }
     }
   };
 
-   useEffect(() => {
+  useEffect(() => {
     if (products.length === 0) {
       setLocalTransportCharge(0);
       onTransportChargeChange(0);
     }
   }, [products.length, onTransportChargeChange]);
 
-   const calculateCurrentBillTotal = () => {
+  const calculateCurrentBillTotal = () => {
     return products.reduce((sum, item) => sum + item.totalPrice, 0);
   };
 
@@ -553,7 +551,7 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge, onTra
                 value={product.hsnCode}
                 onChange={handleChange}
                 ref={hsnCodeInputRef}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-1 text-sm border border-gray-300 rounded-sm focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
 
@@ -744,54 +742,55 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge, onTra
             </tbody>
           </table>
         </div>
-      {/* Transport Charge Input */}
-     <div className="bg-gray-50 px-6 py-3 border-t">
-        <div className="flex items-center gap-4 w-full">
-          <label className="text-sm font-medium text-gray-700 whitespace-nowrap">Transport Charge:</label>
-          <input
-            type="number"
-            value={localTransportCharge}
-            onChange={handleTransportChargeChange}
-            onBlur={handleTransportBlur}
-            min="0"
-            step="0.01"
-            className="w-32 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-            ref={transportChargeInputRef}
-          />
-        </div>
-      </div>
-
-      {/* Footer with total */}
-      {filteredProducts.length > 0 && (
-        <div className="bg-gray-50 px-6 py-3 border-t sticky bottom-0">
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-2">
-            <span className="text-sm text-gray-600">
-              {filteredProducts.length} {filteredProducts.length === 1 ? 'item' : 'items'}
-            </span>
-            <div className="flex items-center gap-4">
-              <span className="text-sm font-medium text-gray-700">
-                Subtotal: ₹{filteredProducts.reduce((sum, item) => sum + (item.basicPrice * item.quantity), 0).toFixed(2)}
-              </span>
-              <span className="text-sm font-medium text-gray-700">
-                GST: ₹{filteredProducts.reduce((sum, item) => sum + (item.gstAmount * item.quantity), 0).toFixed(2)}
-              </span>
-              <span className="text-sm font-medium text-gray-700">
-                SGST: ₹{filteredProducts.reduce((sum, item) => sum + (item.sgstAmount * item.quantity), 0).toFixed(2)}
-              </span>
-              {transportCharge > 0 && (
-                <span className="text-sm font-medium text-gray-700">
-                  Transport: ₹{transportCharge.toFixed(2)}
-                </span>
-              )}
-              <span className="text-lg font-bold text-blue-600">
-                Grand Total: ₹{calculateGrandTotal().toFixed(2)}
-              </span>
-            </div>
+        {/* Transport Charge Input */}
+        <div className="bg-gray-50 px-6 py-3 border-t">
+          <div className="flex items-center gap-4 w-full">
+            <label className="text-sm font-medium text-gray-700 whitespace-nowrap">Transport Charge:</label>
+            <input
+              type="number"
+              value={localTransportCharge}
+              onChange={handleTransportChargeChange}
+              onBlur={handleTransportBlur}
+              min="0"
+              step="0.01"
+              className="w-32 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+              ref={transportChargeInputRef}
+            />
           </div>
         </div>
-      )}
+
+        {/* Footer with total */}
+        {filteredProducts.length > 0 && (
+          <div className="bg-gray-50 px-6 py-3 border-t sticky bottom-0">
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-2">
+              <span className="text-sm text-gray-600">
+                {filteredProducts.length} {filteredProducts.length === 1 ? 'item' : 'items'}
+              </span>
+              <div className="flex items-center gap-4">
+                <span className="text-sm font-medium text-gray-700">
+                  Subtotal: ₹{filteredProducts.reduce((sum, item) => sum + (item.basicPrice * item.quantity), 0).toFixed(2)}
+                </span>
+                <span className="text-sm font-medium text-gray-700">
+                  GST: ₹{filteredProducts.reduce((sum, item) => sum + (item.gstAmount * item.quantity), 0).toFixed(2)}
+                </span>
+                <span className="text-sm font-medium text-gray-700">
+                  SGST: ₹{filteredProducts.reduce((sum, item) => sum + (item.sgstAmount * item.quantity), 0).toFixed(2)}
+                </span>
+                {transportCharge > 0 && (
+                  <span className="text-sm font-medium text-gray-700">
+                    Transport: ₹{transportCharge.toFixed(2)}
+                  </span>
+                )}
+                <span className="text-lg font-bold text-blue-600">
+                  Grand Total: ₹{calculateGrandTotal().toFixed(2)}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
-    </div> 
   );
 }
 export default ProductList;
+

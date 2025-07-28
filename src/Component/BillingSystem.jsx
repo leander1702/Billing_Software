@@ -29,7 +29,7 @@ const BillingSystem = ({
   const [isSaving, setIsSaving] = useState(false);
   const [isCheckingCustomer, setIsCheckingCustomer] = useState(false);
   const [customerOutstandingCredit, setCustomerOutstandingCredit] = useState(0);
-
+  const [transportCharge, setTransportCharge] = useState(0);
   const printRef = useRef(null);
   const paymentRef = useRef(null);
   const customerNameFocusRef = useRef(null);
@@ -40,6 +40,7 @@ const BillingSystem = ({
       toast.error('No products or outstanding credit to print in the bill.');
       return;
     }
+
 
     const billData = {
       customer,
@@ -52,6 +53,9 @@ const BillingSystem = ({
 
     console.log("Printing bill", billData);
     toast.success('Print command sent (check console for bill data)!');
+  };
+  const handleTransportChargeChange = (value) => {
+    setTransportCharge(value);
   };
   const handleCustomerSubmit = async (customerData) => {
     try {
@@ -176,37 +180,37 @@ const BillingSystem = ({
     setShowPaymentModal(true);
   };
 
-// const handlePaymentComplete = async (paymentDetails) => {
-//   if (!currentBill) {
-//     toast.error('No bill data available for payment. Please try again.');
-//     return;
-//   }
-// }
- const handlePaymentComplete = async (paymentDetails) => {
-  if (!currentBill) {
-    toast.error('No bill data available for payment. Please try again.');
-    return;
-  }
+  // const handlePaymentComplete = async (paymentDetails) => {
+  //   if (!currentBill) {
+  //     toast.error('No bill data available for payment. Please try again.');
+  //     return;
+  //   }
+  // }
+  const handlePaymentComplete = async (paymentDetails) => {
+    if (!currentBill) {
+      toast.error('No bill data available for payment. Please try again.');
+      return;
+    }
 
-  setIsSaving(true);
-  const userData = JSON.parse(localStorage.getItem('loggedInUser'));
+    setIsSaving(true);
+    const userData = JSON.parse(localStorage.getItem('loggedInUser'));
 
-  const cashier = {
-    cashierId: userData.cashierId,
-    cashierName: userData.cashierName,
-    counterNum: userData.counterNum,
-    contactNumber: userData.contactNumber,
-  };
+    const cashier = {
+      cashierId: userData.cashierId,
+      cashierName: userData.cashierName,
+      counterNum: userData.counterNum,
+      contactNumber: userData.contactNumber,
+    };
 
-  const productSubtotal = parseFloat(currentBill.productSubtotal?.toFixed(2) || '0');
-  const currentBillTotal = parseFloat(currentBill.currentBillTotal?.toFixed(2) || '0');
-  const grandTotal = parseFloat(paymentDetails.totalAmountDueForSelected || '0');
-  const unpaidAmountForThisBill = Math.max(0, currentBillTotal - (paymentDetails.currentBillPayment || 0));
+    const productSubtotal = parseFloat(currentBill.productSubtotal?.toFixed(2) || '0');
+    const currentBillTotal = parseFloat(currentBill.currentBillTotal?.toFixed(2) || '0');
+    const grandTotal = parseFloat(paymentDetails.totalAmountDueForSelected || '0');
+    const unpaidAmountForThisBill = Math.max(0, currentBillTotal - (paymentDetails.currentBillPayment || 0));
 
-  const isNewBillPresent = currentBill.products && currentBill.products.length > 0;
+    const isNewBillPresent = currentBill.products && currentBill.products.length > 0;
 
-  const payload = isNewBillPresent
-    ? {
+    const payload = isNewBillPresent
+      ? {
         customer: currentBill.customer,
         products: currentBill.products,
         productSubtotal,
@@ -227,7 +231,7 @@ const BillingSystem = ({
         date: currentBill.date,
         selectedUnpaidBillIds: paymentDetails.selectedUnpaidBillIds || [],
       }
-    : {
+      : {
         customerId: customer.id,
         paymentMethod: paymentDetails.method,
         transactionId: paymentDetails.transactionId,
@@ -236,35 +240,36 @@ const BillingSystem = ({
         cashier,
       };
 
-  const apiUrl = isNewBillPresent
-    ? 'http://localhost:5000/api/bills'
-    : 'http://localhost:5000/api/bills/settle-outstanding';
+    const apiUrl = isNewBillPresent
+      ? 'http://localhost:5000/api/bills'
+      : 'http://localhost:5000/api/bills/settle-outstanding';
 
-  console.log(`✅ Sending payload to ${apiUrl}:`, payload);
+    console.log(`✅ Sending payload to ${apiUrl}:`, payload);
 
-  try {
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
+    try {
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
 
-    const data = await response.json();
+      const data = await response.json();
 
-    if (!response.ok) {
-      throw new Error(data.message || 'Payment failed');
+      if (!response.ok) {
+        throw new Error(data.message || 'Payment failed');
+      }
+
+      console.log('✅ Bill created successfully:', data);
+      toast.success('Payment successful and bill saved!');
+      handleFinalClose();
+    } catch (error) {
+      console.error('❌ Error during payment:', error);
+      toast.error(error.message || 'Payment failed');
+    } finally {
+      setIsSaving(false);
     }
+  };
 
-    console.log('✅ Bill created successfully:', data);
-    toast.success('Payment successful and bill saved!');
-    handleFinalClose();
-  } catch (error) {
-    console.error('❌ Error during payment:', error);
-    toast.error(error.message || 'Payment failed');
-  } finally {
-    setIsSaving(false);
-  }
-};
 
 
   const handleFinalClose = () => {
@@ -290,6 +295,8 @@ const BillingSystem = ({
               onFocusProductCode={onFocusProductCode}
               onFocusQuantity={onFocusQuantity}
               onTriggerAddProduct={onTriggerAddProduct}
+              transportCharge={transportCharge}
+              onTransportChargeChange={handleTransportChargeChange}
             />
           </div>
           <div className="lg:w-1/4 flex flex-col gap-1">
