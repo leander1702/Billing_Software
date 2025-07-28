@@ -130,14 +130,12 @@ function BillSummary({
               ₹{currentBillTotal.toFixed(2)}
             </span>
           </div>
-
           <div className={`flex justify-between text-sm mb-1 ${customerOutstandingCredit > 0 ? 'text-red-600' : 'text-green-600'}`}>
             <span className="font-medium">Credit Due:</span>
             <span className="font-medium">
               ₹{customerOutstandingCredit.toFixed(2)}
             </span>
           </div>
-          
           <div className="flex justify-between border-t border-gray-200 pt-2 mt-1 text-sm">
             <span className="font-semibold">Grand Total Payable:</span>
             <span className="font-semibold text-xl text-blue-700">
