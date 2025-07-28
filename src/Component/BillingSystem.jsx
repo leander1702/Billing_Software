@@ -104,7 +104,6 @@ const BillingSystem = ({
   const [isCheckingCustomer, setIsCheckingCustomer] = useState(false);
   const [customerOutstandingCredit, setCustomerOutstandingCredit] = useState(0);
   const [transportCharge, setTransportCharge] = useState(0);
-
   const printRef = useRef(null);
   const paymentRef = useRef(null);
   const customerNameFocusRef = useRef(null);
@@ -200,6 +199,9 @@ const BillingSystem = ({
       setIsSaving(false);
     }
   };
+  const handleTransportChargeChange = (value) => {
+    setTransportCharge(value);
+  };
 
   const handleCustomerSubmit = async (customerData) => {
     try {
@@ -254,20 +256,22 @@ const BillingSystem = ({
 
   const calculateSubtotal = () =>
     products.reduce((sum, item) => {
-      const baseAmount = (item.basicPrice || 0) * (item.quantity || 0);
-      return sum + baseAmount;
+      const baseAmount = (item.basicPrice * item.quantity);
+      return sum + (baseAmount);
     }, 0);
 
   const calculateGST = () =>
     products.reduce((sum, item) => {
-      const baseAmount = (item.gstAmount || 0) * (item.quantity || 0);
-      return sum + baseAmount;
+      const baseAmount = (item.gstAmount * item.quantity);
+      // const gstAmount = (baseAmount * (item.gst*item.quantity)) / 100;
+      return sum + (baseAmount);
     }, 0);
 
   const calculateSGST = () =>
     products.reduce((sum, item) => {
-      const baseAmount = (item.sgstAmount || 0) * (item.quantity || 0);
-      return sum + baseAmount;
+      const baseAmount = (item.sgstAmount * item.quantity);
+      // const gstAmount = (baseAmount * (item.gst*item.quantity)) / 100;
+      return sum + (baseAmount);
     }, 0);
 
   const calculateProductsSubtotal = () => {
@@ -296,7 +300,6 @@ const BillingSystem = ({
       toast.error('Please enter complete customer details before proceeding to payment.');
       return;
     }
-    
     if (products.length === 0 && customerOutstandingCredit === 0) {
       toast.error('Please add products or resolve outstanding credit before proceeding to payment.');
       return;
@@ -316,19 +319,43 @@ const BillingSystem = ({
     setShowPaymentModal(true);
   };
 
+    // Pass data for a potential new bill.
+    // If only outstanding is being paid, currentBillTotal will be 0, and products will be empty.
+    setCurrentBill({
+      customer,
+      products, // Products for the NEW bill
+      productSubtotal: calculateProductsSubtotal(),
+      currentBillTotal: calculateCurrentBillTotal(), // Total for the NEW products
+      previousOutstandingCredit: customerOutstandingCredit, // Full outstanding
+      grandTotal: calculateGrandTotal(), // Combined total, for display/initial payment amount
+      date: new Date().toISOString(),
+      // Generate a bill number ONLY if there are new products.
+      // Otherwise, the backend will handle updates to existing bills.
+      billNumber: calculateCurrentBillTotal() > 0 ? `BILL-${customer.id || 'NEW'}-${Date.now()}` : '',
+    });
+    setShowPaymentModal(true);
+  };
+
+  // const handlePaymentComplete = async (paymentDetails) => {
+  //   if (!currentBill) {
+  //     toast.error('No bill data available for payment. Please try again.');
+  //     return;
+  //   }
+  // }
   const handlePaymentComplete = async (paymentDetails) => {
     if (!currentBill) {
       toast.error('No bill data available for payment. Please try again.');
       return;
     }
-    setIsSaving(true);
 
+    setIsSaving(true);
     const userData = JSON.parse(localStorage.getItem('loggedInUser'));
+
     const cashier = {
       cashierId: userData.cashierId,
       cashierName: userData.cashierName,
       counterNum: userData.counterNum,
-      contactNumber: userData.contactNumber
+      contactNumber: userData.contactNumber,
     };
 
     let apiUrl = '';
@@ -340,7 +367,7 @@ const BillingSystem = ({
       const grandTotal = Math.round(calculateGrandTotal());
       const outstandingPayment = Math.round((paymentDetails.selectedOutstandingPayment));
       const currentPayment = Math.round((paymentDetails.currentBillPayment));
-      const unpaidAmount = grandTotal - (outstandingPayment + currentPayment);
+      const unpaidAmountForThisBill = grandTotal - (outstandingPayment + currentPayment);
 
     // Prepare complete bill data
     const completeBill = {
@@ -386,148 +413,69 @@ const BillingSystem = ({
       isOutstandingPaymentOnly: products.length === 0
     };
 
-    if (isNewBillPresent) {
-      apiUrl = 'http://localhost:5000/api/bills';
-      payload = {
+    const isNewBillPresent = currentBill.products && currentBill.products.length > 0;
+
+    const payload = isNewBillPresent
+      ? {
         customer: currentBill.customer,
-        products: currentBill.products, // Products for the new bill
-        productSubtotal: currentBill.productSubtotal,
-        productGst: currentBill.productGst,
-        currentBillTotal: currentBill.currentBillTotal, // Total for the new products only
-        previousOutstandingCredit: currentBill.previousOutstandingCredit, // Full outstanding customer had before this transaction
-        grandTotal: paymentDetails.totalAmountDueForSelected, // This is the total the user is paying for (new + selected outstanding)
+        products: currentBill.products,
+        productSubtotal,
+        productGst: 0, // assuming no GST
+        currentBillTotal,
+        previousOutstandingCredit: currentBill.previousOutstandingCredit || 0,
+        grandTotal,
+        unpaidAmountForThisBill,
         cashier,
         payment: {
           method: paymentDetails.method,
-          amountPaid: paymentDetails.amountPaid, // Total amount collected by the user
-          transactionId: paymentDetails.transactionId,
-          // Explicitly pass amounts allocated to current vs. outstanding by PaymentModal
-          currentBillPayment: paymentDetails.currentBillPayment,
-          selectedOutstandingPayment: paymentDetails.selectedOutstandingPayment,
+          amountPaid: paymentDetails.amountPaid,
+          transactionId: paymentDetails.transactionId || '',
+          currentBillPayment: paymentDetails.currentBillPayment || 0,
+          selectedOutstandingPayment: paymentDetails.selectedOutstandingPayment || 0,
         },
-        billNumber: currentBill.billNumber, // The new bill number
+        billNumber: currentBill.billNumber,
         date: currentBill.date,
-        // The unpaidAmountForThisBill here reflects the unpaid portion of the *new* bill.
-        // The backend will manage the unpaidAmountForThisBill for selected old bills.
-        unpaidAmountForThisBill: Math.max(0, currentBill.currentBillTotal - paymentDetails.currentBillPayment),
-        selectedUnpaidBillIds: paymentDetails.selectedUnpaidBillIds, // IDs of bills selected for payment
-      };
-    } else {
-      // Scenario 2: Outstanding Bill Payment ONLY (no new bill)
-      // This goes to the new dedicated endpoint for settling outstanding bills
-      apiUrl = 'http://localhost:5000/api/bills/settle-outstanding';
-      payload = {
-        customerId: customer.id, // The ID of the customer whose bills are being settled
+        selectedUnpaidBillIds: paymentDetails.selectedUnpaidBillIds || [],
+      }
+      : {
+        customerId: customer.id,
         paymentMethod: paymentDetails.method,
         transactionId: paymentDetails.transactionId,
-        amountPaid: paymentDetails.amountPaid, // The total amount paid for outstanding bills
+        amountPaid: paymentDetails.amountPaid,
         selectedUnpaidBillIds: paymentDetails.selectedUnpaidBillIds,
         cashier,
       };
-      // For this scenario, we don't send `products`, `currentBillTotal`, `billNumber` etc.,
-      // as no new bill is being created.
-    }
+
+    const apiUrl = isNewBillPresent
+      ? 'http://localhost:5000/api/bills'
+      : 'http://localhost:5000/api/bills/settle-outstanding';
 
     console.log(`✅ Sending payload to ${apiUrl}:`, payload);
-  
+
     try {
-      const res = await fetch(apiUrl, {
-        method: 'POST', // Both endpoints currently use POST
+      const response = await fetch(apiUrl, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-    
-    console.log("Sending bill data:", completeBill);
-    
 
-    // Only check stock if there are products
-    if (products.length > 0) {
-      for (const product of completeBill.products) {
-        const stockCheck = await Api.get(`/products/check-stock/${product.code}`, {
-          params: { unit: product.unit, quantity: product.quantity }
-        });
-        
-        if (!stockCheck.data.isAvailable) {
-          throw new Error(`Insufficient stock for ${product.name}`);
-        }
-      }
-    }
-  
-    // Then create the bill
-    const response = await Api.post('/bills', completeBill);
-    
-    console.log("Bill created successfully:", response.data);
-    toast.success('Payment successful and bill saved!');
-    handleFinalClose();
+      const data = await response.json();
 
-      const completeBill = {
-        customer: {
-          id: currentBill.customer.id || null,
-          name: currentBill.customer.name || '',
-          contact: currentBill.customer.contact || '',
-          aadhaar: currentBill.customer.aadhaar || '',
-          location: currentBill.customer.location || ''
-        },
-        ...(products.length > 0 && {
-          products: currentBill.products.map(p => ({
-            name: p.name,
-            code: p.code,
-            price: Number(p.price || 0),
-            quantity: Number(p.quantity || 0),
-            unit: p.unit,
-            totalPrice: Number(p.totalPrice || 0),
-            discount: Number(p.discount || 0),
-            basicPrice: Number(p.basicPrice || 0),
-            gst: Number(p.gst || 0),
-            sgst: Number(p.sgst || 0),
-            gstAmount: Number(p.gstAmount || 0),
-            sgstAmount: Number(p.sgstAmount || 0),
-            hsnCode: p.hsnCode || ''
-          }))
-        }),
-        productSubtotal,
-        transportCharge: Number(transportCharge || 0),
-        currentBillTotal,
-        grandTotal,
-        unpaidAmountForThisBill: Math.max(0, unpaidAmount),
-        payment: {
-          method: paymentDetails.method || 'cash',
-          currentBillPayment: currentPayment,
-          selectedOutstandingPayment: outstandingPayment,
-          transactionId: paymentDetails.transactionId || ''
-        },
-        billNumber: currentBill.billNumber || `BILL-${Date.now()}`,
-        selectedUnpaidBillIds: paymentDetails.selectedUnpaidBillIds || [],
-        isOutstandingPaymentOnly: products.length === 0
-      };
-
-      if (products.length > 0) {
-        for (const product of completeBill.products) {
-          const stockCheck = await Api.get(`/products/check-stock/${product.code}`, {
-            params: { unit: product.unit, quantity: product.quantity }
-          });
-          
-          if (!stockCheck.data.isAvailable) {
-            throw new Error(`Insufficient stock for ${product.name}`);
-          }
-        }
+      if (!response.ok) {
+        throw new Error(data.message || 'Payment failed');
       }
 
-      const response = await Api.post('/bills', completeBill);
+      console.log('✅ Bill created successfully:', data);
       toast.success('Payment successful and bill saved!');
-      resetForm();
-      setShowPaymentModal(false);
+      handleFinalClose();
     } catch (error) {
-      console.error('Error during payment:', error);
-      if (error.response) {
-        toast.error(error.response.data.message || 'Payment failed');
-      } else if (error.request) {
-        toast.error('Network error. Please check your connection.');
-      } else {
-        toast.error(error.message || 'Failed to complete payment');
-      }
+      console.error('❌ Error during payment:', error);
+      toast.error(error.message || 'Payment failed');
+    } finally {
+      setIsSaving(false);
     }
   };
+
   const handleFinalClose = () => {
     setShowPaymentModal(false);
     resetForm();
@@ -537,7 +485,6 @@ const BillingSystem = ({
   const handleClosePaymentModal = () => {
     setShowPaymentModal(false);
   };
-
   return (
     <div className="bg-gradient-to-br from-blue-50 to-blue-100 font-inter max-h-screen">
       <div className="mx-auto p-1 max-w-full">
@@ -548,12 +495,12 @@ const BillingSystem = ({
               onAdd={handleAddProduct}
               onEdit={handleEditProduct}
               onRemove={handleRemoveProduct}
-              transportCharge={transportCharge}
-              onTransportChargeChange={setTransportCharge}
               onFocusProductSearch={onFocusProductSearch}
               onFocusProductCode={onFocusProductCode}
               onFocusQuantity={onFocusQuantity}
               onTriggerAddProduct={onTriggerAddProduct}
+              transportCharge={transportCharge}
+              onTransportChargeChange={handleTransportChargeChange}
             />
           </div>
           <div className="lg:w-1/4 flex flex-col gap-1">
@@ -571,7 +518,6 @@ const BillingSystem = ({
               customerOutstandingCredit={customerOutstandingCredit}
               currentBillTotal={calculateCurrentBillTotal()}
               grandTotal={calculateGrandTotal()}
-              transportCharge={transportCharge}
               onProceedToPayment={handleProceedToPayment}
               onPrint={handlePrint}
               onTriggerPrint={printRef}
@@ -584,14 +530,13 @@ const BillingSystem = ({
       {showPaymentModal && currentBill && (
         <PaymentModal
           currentBillData={currentBill}
-          onClose={handleClosePaymentModal}
+          onClose={handleFinalClose}
           onComplete={handlePaymentComplete}
           isSaving={isSaving}
         />
       )}
     </div>
   );
-
 };
 
 export default BillingSystem;
