@@ -1,12 +1,86 @@
-// Component/BillingSystem.jsx
 import React, { useState, useRef } from 'react';
 import ProductList from './ProductList';
 import CustomerDetails from './CustomerDetails';
 import BillSummary from './BillSummary';
 import PaymentModal from './PaymentModal';
 import { toast } from 'react-toastify';
-import CashierDetails from './CashierDetails';
 import Api from '../services/api';
+import * as ReactDOMClient from 'react-dom/client';
+
+// Temporary PrintableBill component (define this in a separate file if preferred)
+const PrintableBill = ({ billData, companyDetails }) => {
+  return (
+    <div className="p-4 max-w-md mx-auto">
+      <div className="text-center mb-4">
+        <h1 className="text-2xl font-bold">{companyDetails?.name || 'Company Name'}</h1>
+        <p>{companyDetails?.address || 'Company Address'}</p>
+        <p>GST: {companyDetails?.gst || 'GST Number'}</p>
+      </div>
+      
+      <div className="border-b-2 border-black mb-4">
+        <h2 className="text-xl font-semibold">INVOICE</h2>
+        <p>Bill No: {billData.billNumber}</p>
+        <p>Date: {new Date(billData.date).toLocaleDateString()}</p>
+      </div>
+      
+      <div className="mb-4">
+        <h3 className="font-semibold">Customer Details:</h3>
+        <p>Name: {billData.customer.name}</p>
+        <p>Contact: {billData.customer.contact}</p>
+      </div>
+      
+      {billData.products?.length > 0 && (
+        <table className="w-full mb-4">
+          <thead>
+            <tr className="border-b border-black">
+              <th className="text-left">Item</th>
+              <th className="text-right">Qty</th>
+              <th className="text-right">Price</th>
+              <th className="text-right">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {billData.products.map((product, index) => (
+              <tr key={index} className="border-b border-gray-200">
+                <td>{product.name}</td>
+                <td className="text-right">{product.quantity} {product.unit}</td>
+                <td className="text-right">{product.price.toFixed(2)}</td>
+                <td className="text-right">{(product.quantity * product.price).toFixed(2)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      
+      <div className="border-t-2 border-black pt-2">
+        {billData.transportCharge > 0 && (
+          <div className="flex justify-between">
+            <span>Transport Charge:</span>
+            <span>{billData.transportCharge.toFixed(2)}</span>
+          </div>
+        )}
+        <div className="flex justify-between">
+          <span>Subtotal:</span>
+          <span>{billData.productSubtotal.toFixed(2)}</span>
+        </div>
+        {billData.previousOutstandingCredit > 0 && (
+          <div className="flex justify-between">
+            <span>Previous Outstanding:</span>
+            <span>{billData.previousOutstandingCredit.toFixed(2)}</span>
+          </div>
+        )}
+        <div className="flex justify-between font-bold">
+          <span>Grand Total:</span>
+          <span>{billData.grandTotal.toFixed(2)}</span>
+        </div>
+      </div>
+      
+      <div className="mt-8 text-center">
+        <p>Thank you for your business!</p>
+      </div>
+    </div>
+  );
+};
 
 const BillingSystem = ({
   onFocusProductSearch,
@@ -25,7 +99,7 @@ const BillingSystem = ({
   });
   const [products, setProducts] = useState([]);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [currentBill, setCurrentBill] = useState(null); // This holds the 'new bill' data if any
+  const [currentBill, setCurrentBill] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isCheckingCustomer, setIsCheckingCustomer] = useState(false);
   const [customerOutstandingCredit, setCustomerOutstandingCredit] = useState(0);
@@ -36,24 +110,95 @@ const BillingSystem = ({
   const customerNameFocusRef = useRef(null);
   const phoneNumberFocusRef = useRef(null);
 
-  const handlePrint = () => {
+  const resetForm = () => {
+    setCustomer({
+      id: '',
+      name: '',
+      contact: '',
+      aadhaar: '',
+      location: '',
+    });
+    setProducts([]);
+    setCustomerOutstandingCredit(0);
+    setTransportCharge(0);
+    setCurrentBill(null);
+  };
+
+ const handlePrint = async () => {
     if (products.length === 0 && customerOutstandingCredit === 0) {
       toast.error('No products or outstanding credit to print in the bill.');
       return;
     }
 
-    const billData = {
-      customer,
-      products,
-      transportCharge,
-      productSubtotal: calculateProductsSubtotal(),
-      currentBillTotal: calculateCurrentBillTotal(),
-      previousOutstandingCredit: customerOutstandingCredit,
-      grandTotalIncludingPreviousCredit: calculateGrandTotal(),
-    };
+    try {
+      setIsSaving(true);
+      
+      // Prepare bill data
+      const billData = {
+        customer,
+        products,
+        transportCharge,
+        productSubtotal: calculateProductsSubtotal(),
+        currentBillTotal: calculateCurrentBillTotal(),
+        previousOutstandingCredit: customerOutstandingCredit,
+        grandTotal: calculateGrandTotal(),
+        date: new Date().toISOString(),
+        billNumber: products.length > 0 ? `BILL-${customer.id || 'NEW'}-${Date.now()}` : 'OUTSTANDING-' + Date.now(),
+        payment: {
+          method: 'cash',
+          currentBillPayment: calculateCurrentBillTotal(),
+          selectedOutstandingPayment: 0
+        },
+        selectedUnpaidBillIds: []
+      };
 
-    console.log("Printing bill", billData);
-    toast.success('Print command sent (check console for bill data)!');
+      // First save the bill
+      const response = await Api.post('/bills', billData);
+      const savedBill = response.data.bill;
+
+      // Then fetch company details for printing
+      const companyRes = await Api.get('/companies');
+      const companyDetails = companyRes.data[0];
+
+      // Open print dialog with React 18 syntax
+      const printWindow = window.open('', '_blank');
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>Bill ${savedBill.billNumber}</title>
+            <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+          </head>
+          <body>
+            <div id="print-root"></div>
+            <script>
+              window.onload = function() {
+                setTimeout(() => {
+                  window.print();
+                  setTimeout(() => window.close(), 500);
+                }, 500);
+              };
+            </script>
+          </body>
+        </html>
+      `);
+      
+      printWindow.document.close();
+      
+      // Render the printable component using React 18's createRoot
+      const rootElement = printWindow.document.getElementById('print-root');
+      const root = ReactDOMClient.createRoot(rootElement);
+      root.render(
+        <PrintableBill billData={savedBill} companyDetails={companyDetails} />
+      );
+
+      toast.success('Bill saved and printed successfully!');
+      resetForm();
+    } catch (error) {
+      console.error('Print error:', error);
+      toast.error('Failed to print bill: ' + (error.response?.data?.message || error.message));
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleCustomerSubmit = async (customerData) => {
@@ -61,7 +206,6 @@ const BillingSystem = ({
       setIsCheckingCustomer(true);
       const res = await Api.get(`/customers?contact=${customerData.contact}`);
 
-      // Existing customer found
       const existingCustomer = res.data;
       toast.info(`Existing customer found: ${existingCustomer.name}`);
       setCustomer({
@@ -72,10 +216,8 @@ const BillingSystem = ({
         location: existingCustomer.location || ''
       });
       setCustomerOutstandingCredit(existingCustomer.outstandingCredit || 0);
-      setFoundInDB(true); // This should be managed in parent if needed
     } catch (err) {
       if (err.response?.status === 404) {
-        // New customer case
         setCustomer({
           id: '',
           name: customerData.name,
@@ -93,6 +235,7 @@ const BillingSystem = ({
       setIsCheckingCustomer(false);
     }
   };
+
   const handleAddProduct = (product) => {
     setProducts([...products, product]);
   };
@@ -131,56 +274,53 @@ const BillingSystem = ({
     const subtotal = calculateSubtotal();
     const gst = calculateGST();
     const sgst = calculateSGST();
-    return subtotal + gst + sgst;
+    return Math.round((subtotal + gst + sgst));
   };
 
   const calculateCurrentBillTotal = () => {
     const subtotal = calculateProductsSubtotal();
-    return subtotal + (transportCharge || 0);
+    return Math.round((subtotal + (transportCharge || 0)));
   };
 
   const calculateGrandTotal = () => {
-    return calculateCurrentBillTotal() + (customerOutstandingCredit || 0);
+    return Math.round((calculateCurrentBillTotal() + (customerOutstandingCredit || 0)));
   };
 
   const handleNewCustomer = () => {
-    setCustomer({ id: '', name: '', contact: '', aadhaar: '', location: '' });
-    setProducts([]);
-    setCustomerOutstandingCredit(0);
-    setCurrentBill(null);
+    resetForm();
     toast.info('New bill started!');
   };
 
   const handleProceedToPayment = () => {
-  if (!customer.id && (!customer.name.trim() || customer.contact.length !== 10)) {
-    toast.error('Please enter complete customer details before proceeding to payment.');
-    return;
-  }
-  
-  // Allow proceeding to payment if there are products OR if there's outstanding credit
-  if (products.length === 0 && customerOutstandingCredit === 0) {
-    toast.error('Please add products or resolve outstanding credit before proceeding to payment.');
-    return;
-  }
+    if (!customer.id && (!customer.name.trim() || customer.contact.length !== 10)) {
+      toast.error('Please enter complete customer details before proceeding to payment.');
+      return;
+    }
+    
+    if (products.length === 0 && customerOutstandingCredit === 0) {
+      toast.error('Please add products or resolve outstanding credit before proceeding to payment.');
+      return;
+    }
 
-  // Pass data for a potential new bill.
-  setCurrentBill({
-    customer,
-    products,
-    productSubtotal: calculateProductsSubtotal(),
-    currentBillTotal: calculateCurrentBillTotal(), // Will be 0 if no products
-    previousOutstandingCredit: customerOutstandingCredit,
-    grandTotal: calculateGrandTotal(),
-    date: new Date().toISOString(),
-    // Generate a bill number only if there are products
-    billNumber: products.length > 0 ? `BILL-${customer.id || 'NEW'}-${Date.now()}` : 'OUTSTANDING-' + Date.now(),
-    // Add flag for outstanding-only payments
-    isOutstandingPaymentOnly: products.length === 0 && customerOutstandingCredit > 0
-  });
-  setShowPaymentModal(true);
-};
+    setCurrentBill({
+      customer,
+      products,
+      productSubtotal: calculateProductsSubtotal(),
+      currentBillTotal: calculateCurrentBillTotal(),
+      previousOutstandingCredit: customerOutstandingCredit,
+      grandTotal: calculateGrandTotal(),
+      date: new Date().toISOString(),
+      billNumber: products.length > 0 ? `BILL-${customer.id || 'NEW'}-${Date.now()}` : 'OUTSTANDING-' + Date.now(),
+      isOutstandingPaymentOnly: products.length === 0 && customerOutstandingCredit > 0
+    });
+    setShowPaymentModal(true);
+  };
 
   const handlePaymentComplete = async (paymentDetails) => {
+    if (!currentBill) {
+      toast.error('No bill data available for payment. Please try again.');
+      return;
+    }
     setIsSaving(true);
 
     const userData = JSON.parse(localStorage.getItem('loggedInUser'));
@@ -195,13 +335,12 @@ const BillingSystem = ({
     let payload = {};
 
   try {
-    // Calculate all values with proper fallbacks
-    const productSubtotal = Number(calculateProductsSubtotal().toFixed(2)) || 0;
-    const currentBillTotal = Number(calculateCurrentBillTotal().toFixed(2)) || 0;
-    const grandTotal = Number(calculateGrandTotal().toFixed(2)) || 0;
-    const outstandingPayment = Number(paymentDetails.selectedOutstandingPayment || 0);
-    const currentPayment = Number(paymentDetails.currentBillPayment || 0);
-    const unpaidAmount = grandTotal - (outstandingPayment + currentPayment);
+      const productSubtotal = Math.round(calculateProductsSubtotal());
+      const currentBillTotal = Math.round(calculateCurrentBillTotal());
+      const grandTotal = Math.round(calculateGrandTotal());
+      const outstandingPayment = Math.round((paymentDetails.selectedOutstandingPayment));
+      const currentPayment = Math.round((paymentDetails.currentBillPayment));
+      const unpaidAmount = grandTotal - (outstandingPayment + currentPayment);
 
     // Prepare complete bill data
     const completeBill = {
@@ -321,34 +460,82 @@ const BillingSystem = ({
     toast.success('Payment successful and bill saved!');
     handleFinalClose();
 
-  } catch (error) {
-    console.error('Error during payment:', error);
-    
-    if (error.response) {
-      console.error('Server responded with:', error.response.status);
-      console.error('Response data:', error.response.data);
-      toast.error(error.response.data.message || 'Payment failed');
-    } else if (error.request) {
-      console.error('No response received:', error.request);
-      toast.error('Network error. Please check your connection.');
-    } else {
-      console.error('Request setup error:', error.message);
-      toast.error(error.message || 'Failed to complete payment');
+      const completeBill = {
+        customer: {
+          id: currentBill.customer.id || null,
+          name: currentBill.customer.name || '',
+          contact: currentBill.customer.contact || '',
+          aadhaar: currentBill.customer.aadhaar || '',
+          location: currentBill.customer.location || ''
+        },
+        ...(products.length > 0 && {
+          products: currentBill.products.map(p => ({
+            name: p.name,
+            code: p.code,
+            price: Number(p.price || 0),
+            quantity: Number(p.quantity || 0),
+            unit: p.unit,
+            totalPrice: Number(p.totalPrice || 0),
+            discount: Number(p.discount || 0),
+            basicPrice: Number(p.basicPrice || 0),
+            gst: Number(p.gst || 0),
+            sgst: Number(p.sgst || 0),
+            gstAmount: Number(p.gstAmount || 0),
+            sgstAmount: Number(p.sgstAmount || 0),
+            hsnCode: p.hsnCode || ''
+          }))
+        }),
+        productSubtotal,
+        transportCharge: Number(transportCharge || 0),
+        currentBillTotal,
+        grandTotal,
+        unpaidAmountForThisBill: Math.max(0, unpaidAmount),
+        payment: {
+          method: paymentDetails.method || 'cash',
+          currentBillPayment: currentPayment,
+          selectedOutstandingPayment: outstandingPayment,
+          transactionId: paymentDetails.transactionId || ''
+        },
+        billNumber: currentBill.billNumber || `BILL-${Date.now()}`,
+        selectedUnpaidBillIds: paymentDetails.selectedUnpaidBillIds || [],
+        isOutstandingPaymentOnly: products.length === 0
+      };
+
+      if (products.length > 0) {
+        for (const product of completeBill.products) {
+          const stockCheck = await Api.get(`/products/check-stock/${product.code}`, {
+            params: { unit: product.unit, quantity: product.quantity }
+          });
+          
+          if (!stockCheck.data.isAvailable) {
+            throw new Error(`Insufficient stock for ${product.name}`);
+          }
+        }
+      }
+
+      const response = await Api.post('/bills', completeBill);
+      toast.success('Payment successful and bill saved!');
+      resetForm();
+      setShowPaymentModal(false);
+    } catch (error) {
+      console.error('Error during payment:', error);
+      if (error.response) {
+        toast.error(error.response.data.message || 'Payment failed');
+      } else if (error.request) {
+        toast.error('Network error. Please check your connection.');
+      } else {
+        toast.error(error.message || 'Failed to complete payment');
+      }
     }
-  }
-  }
+  };
   const handleFinalClose = () => {
     setShowPaymentModal(false);
-    setCustomer({ id: '', name: '', contact: '', aadhaar: '', location: '' });
-    setProducts([]);
-    setCustomerOutstandingCredit(0); // This resets it for a new bill/customer session
-    setCurrentBill(null);
+    resetForm();
     toast.info('Ready for a new bill!');
   };
 
   const handleClosePaymentModal = () => {
     setShowPaymentModal(false);
-    // Don't reset any other state here
   };
 
   return (
