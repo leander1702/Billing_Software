@@ -784,6 +784,7 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge ,
         )}
       </div>
     </div>
+    </div>
   );
 }
 export default ProductList;
