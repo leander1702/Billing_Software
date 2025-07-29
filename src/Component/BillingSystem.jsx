@@ -50,8 +50,28 @@ const BillingSystem = ({
     setCurrentBill(null);
   };
 
- const handlePrint = async () => {
-  if (products.length === 0 && customerOutstandingCredit === 0) {
+const handlePrint = async (billDataToPrint = null) => {
+  // Use passed bill data if available, otherwise use current state
+  const billData = billDataToPrint || {
+    customer,
+    products,
+    transportCharge,
+    productSubtotal: calculateSubtotal(),
+    currentBillTotal: calculateCurrentBillTotal(),
+    previousOutstandingCredit: customerOutstandingCredit,
+    grandTotal: calculateGrandTotal(),
+    date: new Date().toISOString(),
+    billNumber: products.length > 0 ? `BILL-${customer.id || 'NEW'}-${Date.now()}` : 'OUTSTANDING-' + Date.now(),
+    payment: {
+      method: 'cash',
+      currentBillPayment: calculateCurrentBillTotal(),
+      selectedOutstandingPayment: 0
+    },
+    selectedUnpaidBillIds: []
+  };
+
+  if ((!billData.products || billData.products.length === 0) && 
+      (!billData.previousOutstandingCredit || billData.previousOutstandingCredit === 0)) {
     toast.error('No products or outstanding credit to print in the bill.');
     return;
   }
@@ -68,42 +88,45 @@ const BillingSystem = ({
       contactNumber: userData.contactNumber,
     };
 
-    // Prepare bill data
-    const billData = {
-      customer,
-      products,
-      cashier,  // Include cashier details
-      transportCharge,
-      productSubtotal: calculateProductsSubtotal(),
-      currentBillTotal: calculateCurrentBillTotal(),
-      previousOutstandingCredit: customerOutstandingCredit,
-      grandTotal: calculateGrandTotal(),
-      date: new Date().toISOString(),
-      billNumber: products.length > 0 ? `BILL-${customer.id || 'NEW'}-${Date.now()}` : 'OUTSTANDING-' + Date.now(),
-      payment: {
-        method: 'cash',
-        currentBillPayment: calculateCurrentBillTotal(),
-        selectedOutstandingPayment: 0
-      },
-      selectedUnpaidBillIds: []
+    // Add cashier details to bill data
+    const completeBillData = {
+      ...billData,
+      cashier
     };
 
-    // Rest of the function remains the same...
-    // First save the bill
-    const response = await Api.post('/bills', billData);
-    const savedBill = response.data.bill;
+    // First save the bill if it's not already saved (from payment flow)
+    let savedBill = billData;
+    if (!billData._id) {
+      const apiUrl = billData.isOutstandingPaymentOnly ? '/bills/settle-outstanding' : '/bills';
+      const response = await Api.post(apiUrl, completeBillData);
+      savedBill = response.data.bill || response.data; // Handle different response structures
+    }
 
     // Then fetch company details for printing
     const companyRes = await Api.get('/companies');
     const companyDetails = companyRes.data[0];
 
-    // Open print dialog with React 18 syntax
+    // Open print dialog
     const printWindow = window.open('', '_blank');
     printWindow.document.write(`
       <html>
         <head>
           <title>Bill ${savedBill.billNumber}</title>
           <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+          <style>
+            @page {
+              size: A4;
+              margin: 0;
+            }
+            @media print {
+              body {
+                width: 210mm;
+                height: 297mm;
+                margin: 0;
+                padding: 0;
+              }
+            }
+          </style>
         </head>
         <body>
           <div id="print-root"></div>
@@ -118,18 +141,19 @@ const BillingSystem = ({
         </body>
       </html>
     `);
-
     printWindow.document.close();
 
-    // Render the printable component using React 18's createRoot
+    // Render the printable component
     const rootElement = printWindow.document.getElementById('print-root');
     const root = ReactDOMClient.createRoot(rootElement);
     root.render(
       <PrintableBill billData={savedBill} companyDetails={companyDetails} />
     );
 
-    toast.success('Bill saved and printed successfully!');
-    resetForm();
+    if (!billDataToPrint) {
+      toast.success('Bill saved and printed successfully!');
+      resetForm();
+    }
   } catch (error) {
     console.error('Print error:', error);
     toast.error('Failed to print bill: ' + (error.response?.data?.message || error.message));
@@ -324,14 +348,14 @@ const handlePaymentComplete = async (paymentDetails) => {
         products: currentBill.products.map(p => ({
           name: p.name,
           code: p.code,
-          mrpPrice:Number(p.mrpPrice),
-          price: Number(p.price ),
-          quantity: Number(p.quantity ),
+          mrpPrice: Number(p.mrpPrice),
+          price: Number(p.price),
+          quantity: Number(p.quantity),
           unit: p.unit,
-          totalPrice: Number(p.totalPrice ),
-          discount: Number(p.discount ),
-          basicPrice: Number(p.basicPrice ),
-          gst: Number(p.gst ),
+          totalPrice: Number(p.totalPrice),
+          discount: Number(p.discount),
+          basicPrice: Number(p.basicPrice),
+          gst: Number(p.gst),
           sgst: Number(p.sgst),
           gstAmount: Number(p.gstAmount),
           sgstAmount: Number(p.sgstAmount),
@@ -362,6 +386,8 @@ const handlePaymentComplete = async (paymentDetails) => {
     const response = await Api.post(apiUrl, completeBill);
 
     if (response.data.success) {
+      // Print the bill after successful payment
+      await handlePrint(response.data.bill || completeBill);
       toast.success('Payment successful and bill saved!');
       handleFinalClose();
     } else {
