@@ -5,7 +5,7 @@ import { FiEdit2, FiTrash2, FiSearch, FiPlus, FiRefreshCw } from 'react-icons/fi
 import Api from '../services/api';
 import Swal from 'sweetalert2';
 
-function ProductList({ products, onAdd, onEdit, onRemove, transportCharge ,
+function ProductList({ products, onAdd, onEdit, onRemove, transportCharge,
   onTransportChargeChange = (value) => { }, }) {
   const initialProduct = {
     code: '',
@@ -109,7 +109,7 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge ,
 
         const selectedUnit = product.selectedUnit || productData.baseUnit;
         let price = productData.mrp || 0;
-        
+
         if (selectedUnit === productData.secondaryUnit) {
           price = productData.mrp / productData.conversionRate;
           price = Math.round(price * 10) / 10;
@@ -118,8 +118,8 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge ,
         const gstPercentage = productData.gst || 0;
         const sgstPercentage = productData.sgst || 0;
         const totalTaxPercentage = gstPercentage + sgstPercentage;
-        
-        const basicPrice = totalTaxPercentage > 0 
+
+        const basicPrice = totalTaxPercentage > 0
           ? price / (1 + (totalTaxPercentage / 100))
           : price;
 
@@ -190,7 +190,7 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge ,
   const handleNameChange = (e) => {
     const { value } = e.target;
     setProduct(prev => ({ ...prev, name: value }));
-    
+
     if (value.length > 1) {
       fetchProductSuggestions(value);
     } else {
@@ -290,8 +290,8 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge ,
       const gstPercentage = product.gst || 0;
       const sgstPercentage = product.sgst || 0;
       const totalTaxPercentage = gstPercentage + sgstPercentage;
-      
-      const basicPrice = totalTaxPercentage > 0 
+
+      const basicPrice = totalTaxPercentage > 0
         ? priceValue / (1 + (totalTaxPercentage / 100))
         : priceValue;
 
@@ -312,8 +312,8 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge ,
       const sgstValue = name === 'sgst' ? parseFloat(processedValue) || 0 : product.sgst;
       const priceValue = parseFloat(product.price) || 0;
       const totalTaxPercentage = gstValue + sgstValue;
-      
-      const basicPrice = totalTaxPercentage > 0 
+
+      const basicPrice = totalTaxPercentage > 0
         ? priceValue / (1 + (totalTaxPercentage / 100))
         : priceValue;
 
@@ -343,14 +343,20 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge ,
 
   const checkStockAvailability = async (productName, quantity, unit) => {
     try {
-      const product = await Api.get(`/products/name/${productName}`);
-      if (!product.data) return { isAvailable: false, available: 0 };
+      // First get the product details
+      const productRes = await Api.get(`/products/name/${productName}`);
+      const product = productRes.data;
 
-      const response = await Api.get(`/products/check-stock/${product.data.productCode}`, {
+      if (!product) {
+        return { isAvailable: false, available: 0 };
+      }
+
+      // Then get the stock information
+      const stockRes = await Api.get(`/products/check-stock/${product.productCode}`, {
         params: { unit, quantity }
       });
 
-      return response.data;
+      return stockRes.data;
     } catch (err) {
       console.error('Error checking stock:', err);
       return { isAvailable: false, available: 0 };
@@ -378,10 +384,13 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge ,
       product.selectedUnit || product.baseUnit
     );
 
-    if (!stockCheck.isAvailable) {
+    if (stockCheck.isAvailable  && !stockCheck.isAvailable) {
+      const availableInRequestedUnit = stockCheck.availableDisplay.toFixed(2);
+      const requestedUnit = product.selectedUnit || product.baseUnit;
+
       await Swal.fire({
         title: 'Insufficient Stock',
-        html: `Only <b>${stockCheck.availableDisplay.toFixed(2)} ${product.selectedUnit || product.baseUnit}</b> available for <b>${product.name}</b>`,
+        html: `Only <b>${availableInRequestedUnit} ${requestedUnit}</b> available for <b>${product.name}</b>`,
         icon: 'warning',
         confirmButtonText: 'OK',
         confirmButtonColor: '#3085d6',
@@ -473,10 +482,10 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge ,
             </div>
             <button
               type="submit"
-              className={`px-4 py-1 text-sm rounded-sm flex items-center gap-2 ${editingIndex !== null 
-                  ? 'bg-yellow-500 hover:bg-yellow-600' 
-                  : 'bg-blue-600 hover:bg-blue-700'
-              } text-white transition-colors`}
+              className={`px-4 py-1 text-sm rounded-sm flex items-center gap-2 ${editingIndex !== null
+                ? 'bg-yellow-500 hover:bg-yellow-600'
+                : 'bg-blue-600 hover:bg-blue-700'
+                } text-white transition-colors`}
               ref={addProductButtonRef}
               disabled={isLoading}
             >
@@ -728,7 +737,7 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge ,
               ) : (
                 <tr>
                   <td colSpan="14" className="px-4 py-8 text-center text-gray-500">
-                    {products.length > 0 
+                    {products.length > 0
                       ? 'No products match your search'
                       : 'No products added yet. Start by adding products above.'}
                   </td>
@@ -737,53 +746,53 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge ,
             </tbody>
           </table>
         </div>
-      {/* Transport Charge Input */}
-     <div className="bg-gray-50 px-6 py-3 border-t">
-        <div className="flex items-center gap-4 w-full">
-          <label className="text-sm font-medium text-gray-700 whitespace-nowrap">Transport Charge:</label>
-          <input
-            type="number"
-            value={localTransportCharge}
-            onChange={handleTransportChargeChange}
-            onBlur={handleTransportBlur}
-            min="0"
-            step="0.01"
-            className="w-32 no-arrows px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-            ref={transportChargeInputRef}
-          />
-        </div>
+        {/* Transport Charge Input */}
+        <div className="bg-gray-50 px-6 py-3 border-t">
+          <div className="flex items-center gap-4 w-full">
+            <label className="text-sm font-medium text-gray-700 whitespace-nowrap">Transport Charge:</label>
+            <input
+              type="number"
+              value={localTransportCharge}
+              onChange={handleTransportChargeChange}
+              onBlur={handleTransportBlur}
+              min="0"
+              step="0.01"
+              className="w-32 no-arrows px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+              ref={transportChargeInputRef}
+            />
+          </div>
 
-        {/* Footer with total */}
-        {filteredProducts.length > 0 && (
-          <div className="bg-gray-50 px-6 py-3 border-t sticky bottom-0">
-            <div className="flex flex-col sm:flex-row justify-between items-center gap-2">
-              <span className="text-sm text-gray-600">
-                {filteredProducts.length} {filteredProducts.length === 1 ? 'item' : 'items'}
-              </span>
-              <div className="flex items-center gap-4">
-                <span className="text-sm font-medium text-gray-700">
-                  Subtotal: ₹{filteredProducts.reduce((sum, item) => sum + (item.basicPrice * item.quantity), 0).toFixed(2)}
+          {/* Footer with total */}
+          {filteredProducts.length > 0 && (
+            <div className="bg-gray-50 px-6 py-3 border-t sticky bottom-0">
+              <div className="flex flex-col sm:flex-row justify-between items-center gap-2">
+                <span className="text-sm text-gray-600">
+                  {filteredProducts.length} {filteredProducts.length === 1 ? 'item' : 'items'}
                 </span>
-                <span className="text-sm font-medium text-gray-700">
-                  GST: ₹{filteredProducts.reduce((sum, item) => sum + (item.gstAmount * item.quantity), 0).toFixed(2)}
-                </span>
-                <span className="text-sm font-medium text-gray-700">
-                  SGST: ₹{filteredProducts.reduce((sum, item) => sum + (item.sgstAmount * item.quantity), 0).toFixed(2)}
-                </span>
-                {transportCharge > 0 && (
+                <div className="flex items-center gap-4">
                   <span className="text-sm font-medium text-gray-700">
-                    Transport: ₹{transportCharge.toFixed(2)}
+                    Subtotal: ₹{filteredProducts.reduce((sum, item) => sum + (item.basicPrice * item.quantity), 0).toFixed(2)}
                   </span>
-                )}
-                <span className="text-lg font-bold text-blue-600">
-                  Grand Total: ₹{calculateGrandTotal().toFixed(2)}
-                </span>
+                  <span className="text-sm font-medium text-gray-700">
+                    GST: ₹{filteredProducts.reduce((sum, item) => sum + (item.gstAmount * item.quantity), 0).toFixed(2)}
+                  </span>
+                  <span className="text-sm font-medium text-gray-700">
+                    SGST: ₹{filteredProducts.reduce((sum, item) => sum + (item.sgstAmount * item.quantity), 0).toFixed(2)}
+                  </span>
+                  {transportCharge > 0 && (
+                    <span className="text-sm font-medium text-gray-700">
+                      Transport: ₹{transportCharge.toFixed(2)}
+                    </span>
+                  )}
+                  <span className="text-lg font-bold text-blue-600">
+                    Grand Total: ₹{calculateGrandTotal().toFixed(2)}
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
-    </div>
     </div>
   );
 }

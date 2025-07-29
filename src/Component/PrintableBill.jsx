@@ -71,14 +71,26 @@ const PrintableBill = ({ billData = {}, companyDetails = {} }) => {
         const taxTotal = Math.round((gstTotal + sgstTotal) * 100) / 100;
         const transport = Math.round((billData.transportCharge || 0) * 100) / 100;
         const credit = Math.round((billData.previousOutstandingCredit || 0) * 100) / 100;
-        const grandTotal = Math.round((subtotal + taxTotal + transport) * 100) / 100;
+        const grandTotal = Math.round((subtotal + taxTotal + transport + credit) * 100) / 100;
+
+        // Calculate payment details
+        const currentPayment = billData.payment?.currentBillPayment || 0;
+        const outstandingPayment = billData.payment?.selectedOutstandingPayment || 0;
+        const totalPaid = Math.round((currentPayment + outstandingPayment) * 100) / 100;
+        const balanceDue = Math.round((grandTotal - totalPaid) * 100) / 100;
 
         return {
             subtotal,
             gstTotal,
             sgstTotal,
             taxTotal,
+            transport,
+            credit,
             grandTotal,
+            currentPayment,
+            outstandingPayment,
+            totalPaid,
+            balanceDue
         };
     };
 
@@ -105,7 +117,6 @@ const PrintableBill = ({ billData = {}, companyDetails = {} }) => {
             {/* Header Section */}
             <div className='flex justify-between'>
                 <p className="font-semibold">GSTIN: {displayValue(companyDetails.gstin, 'N/A')}</p>
-                {/* <h1 className="text-2xl font-bold mb-1">INVOICE</h1> */}
                 <p className="font-semibold mt-2">Original for Buyer</p>
             </div>
             <div className="text-center mb-4">
@@ -118,7 +129,7 @@ const PrintableBill = ({ billData = {}, companyDetails = {} }) => {
             </div>
 
             {/* Bill Info Section */}
-            <div className="flex justify-between mb-4 border-b border-black pb-2">
+            <div className="flex justify-between mb-1 border-b border-black pb-2">
                 <div>
                     <h3 className="font-semibold mb-[2px] text-md">Customer Details:</h3>
                     <p><span className="font-semibold">Customer Name:</span> {displayValue(billData.customer?.name, 'N/A')}</p>
@@ -136,12 +147,12 @@ const PrintableBill = ({ billData = {}, companyDetails = {} }) => {
             </div>
 
             {/* Bill Details Table */}
-            <div className="mb-4">
+            <div className="mb2">
                 <h3 className="font-semibold mb-2 text-lg">Bill Details:</h3>
-                <table className="w-full  border">
+                <table className="w-full border">
                     <thead>
                         <tr>
-                            <th className="text-center py-1 font-semibold border  border-black bg-gray-100" style={{ fontSize: '10px' }}>SNO</th>
+                            <th className="text-center py-1 font-semibold border border-black bg-gray-100" style={{ fontSize: '10px' }}>SNO</th>
                             <th className="text-center py-1 font-semibold border border-black bg-gray-100" style={{ fontSize: '10px' }}>Product Code</th>
                             <th className="text-center py-1 font-semibold border border-black bg-gray-100" style={{ fontSize: '10px' }}>Product Name</th>
                             <th className="text-center py-1 font-semibold border border-black bg-gray-100" style={{ fontSize: '10px' }}>MRP</th>
@@ -180,14 +191,14 @@ const PrintableBill = ({ billData = {}, companyDetails = {} }) => {
                     </tbody>
                 </table>
 
-                <div className="mt-2">
+                <div className="mt-2 flex justify-between">
                     <p><span className="font-semibold">Delivery Charges:</span> {formatCurrency(billData.transportCharge)}</p>
                     <p><span className="font-semibold">Item Count:</span> {(billData.products || []).length}</p>
                 </div>
             </div>
 
             {/* Totals Section */}
-            <div className="mb-4 text-right">
+            <div className="mb-2 text-right">
                 <div className="flex justify-between mb-1">
                     <span>Subtotal:</span>
                     <span>{formatCurrency(totals.subtotal)}</span>
@@ -202,25 +213,59 @@ const PrintableBill = ({ billData = {}, companyDetails = {} }) => {
                 </div>
                 <div className="flex justify-between mb-1">
                     <span>Delivery Charges:</span>
-                    <span>{formatCurrency(billData.transportCharge)}</span>
+                    <span>{formatCurrency(totals.transport)}</span>
                 </div>
                 <div className="flex justify-between mb-1">
                     <span>Previous Credit:</span>
-                    <span>{formatCurrency(billData.previousOutstandingCredit)}</span>
+                    <span>{formatCurrency(totals.credit)}</span>
                 </div>
 
-                <div className="mt-2 mb-2">
+                <div className="mt-1 mb-1">
                     <span className="font-bold text-md text-right">Grand Total:</span>
-                </div>
-
-                <div className="flex justify-between border-t border-black pt-2">
-                    <p className="font-semibold">Bill Amount In Words: {numberToWords(totals.grandTotal)}</p>
                     <span className="font-bold text-lg">{formatCurrency(totals.grandTotal)}</span>
                 </div>
+
+                {/* Payment Details Section - Only show if payment was made */}
+                {billData.payment && (
+                    <>
+                        <div className="flex justify-between border-t border-black pt-2">
+                            <span className="font-semibold">Current Bill Payment:</span>
+                            <span>{formatCurrency(totals.currentPayment)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span className="font-semibold">Outstanding Payment:</span>
+                            <span>{formatCurrency(totals.outstandingPayment)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span className="font-semibold">Total Paid:</span>
+                            <span className="font-semibold text-green-600">{formatCurrency(totals.totalPaid)}</span>
+                        </div>
+                        {totals.balanceDue > 0 && (
+                            <div className="flex justify-between">
+                                <span className="font-semibold">Balance Due:</span>
+                                <span className="font-semibold text-red-600">{formatCurrency(totals.balanceDue)}</span>
+                            </div>
+                        )}
+                    </>
+                )}
+
+                <div className="mt-2 border-t border-black pt-2">
+                    <p className="font-semibold">Bill Amount In Words: {numberToWords(totals.grandTotal)}</p>
+                </div>
             </div>
+            {/* Payment Method Section */}
+            {billData.payment && (
+                <div className="mb-1">
+                    <p><span className="font-semibold">Payment Method:</span> {billData.payment.method.toUpperCase()}</p>
+                    {billData.payment.transactionId && (
+                        <p><span className="font-semibold">Transaction ID:</span> {billData.payment.transactionId}</p>
+                    )}
+                </div>
+            )}
 
             {/* Terms & Conditions Section */}
-            <div className="mb-4 border-t border-black pt-2">
+            <div className='flex justify-between border-t border-black'>
+            <div className="mb-2  pt-2">
                 <h3 className="font-semibold mb-1 text-lg">Terms & Conditions:</h3>
                 <ol className="list-decimal pl-5 space-y-1">
                     <li>Goods once sold cannot be taken back or exchanged.</li>
@@ -228,16 +273,17 @@ const PrintableBill = ({ billData = {}, companyDetails = {} }) => {
                     <li>All disputes are subject to Tingpur jurisdiction only.</li>
                 </ol>
             </div>
-
-            {/* Footer Section */}
-            <div className="text-center border-t border-black pt-4">
-                <p className="mb-4">Thank You for Your Purchase! We Appreciate Your Business.</p>
-                <div className="mt-8 text-right">
-                    <p className="font-semibold">Authorized Signatory</p>
+            <div className="mt-8 text-center">
+                    <p className="font-semibold text-right">Authorized Signatory</p>
                     <div className="mt-2 inline-block border-t border-black pt-1">
                         <p>Stamp & Signature</p>
                     </div>
                 </div>
+                </div>
+
+            {/* Footer Section */}
+            <div className="text-center border-t border-black pt-4">
+                <p className="mb-4">Thank You for Your Purchase! We Appreciate Your Business.</p>
             </div>
         </div>
     );
