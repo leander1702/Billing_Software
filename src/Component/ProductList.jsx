@@ -111,7 +111,7 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge,
         let price = productData.mrp || 0;
 
         if (selectedUnit === productData.secondaryUnit) {
-          price = productData.mrp / productData.conversionRate;
+          price = productData.perUnitPrice;
           price = Math.round(price * 10) / 10;
         }
 
