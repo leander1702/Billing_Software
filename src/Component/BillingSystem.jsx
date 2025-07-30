@@ -50,13 +50,11 @@ const BillingSystem = ({
     setCurrentBill(null);
   };
 
- const printBill = async (billData) => {
+  const printBill = async (billData) => {
     try {
-      // Fetch company details for printing
       const companyRes = await Api.get('/companies');
       const companyDetails = companyRes.data[0];
 
-      // Open print dialog with React 18 syntax
       const printWindow = window.open('', '_blank');
       printWindow.document.write(`
         <html>
@@ -80,7 +78,6 @@ const BillingSystem = ({
 
       printWindow.document.close();
 
-      // Render the printable component using React 18's createRoot
       const rootElement = printWindow.document.getElementById('print-root');
       const root = ReactDOMClient.createRoot(rootElement);
       root.render(
@@ -101,7 +98,6 @@ const BillingSystem = ({
     try {
       setIsSaving(true);
 
-      // Get cashier details from localStorage
       const userData = JSON.parse(localStorage.getItem('loggedInUser'));
       const cashier = {
         cashierId: userData.cashierId,
@@ -110,10 +106,9 @@ const BillingSystem = ({
         contactNumber: userData.contactNumber,
       };
 
-      // Prepare bill data
       const billData = {
         customer,
-        products,
+        products: products.length > 0 ? products : [],
         cashier,
         transportCharge,
         productSubtotal: calculateSubtotal(),
@@ -121,20 +116,22 @@ const BillingSystem = ({
         previousOutstandingCredit: customerOutstandingCredit,
         grandTotal: calculateGrandTotal(),
         date: new Date().toISOString(),
-        billNumber: products.length > 0 ? `BILL-${customer.id || 'NEW'}-${Date.now()}` : 'OUTSTANDING-' + Date.now(),
+        billNumber: products.length > 0 
+          ? `BILL-${customer.id || 'NEW'}-${Date.now()}` 
+          : `CREDIT-${customer.id || 'NEW'}-${Date.now()}`,
         payment: {
           method: 'cash',
           currentBillPayment: calculateCurrentBillTotal(),
-          selectedOutstandingPayment: 0
+          selectedOutstandingPayment: customerOutstandingCredit,
+          amountPaid: customerOutstandingCredit
         },
-        selectedUnpaidBillIds: []
+        selectedUnpaidBillIds: [],
+        isOutstandingPaymentOnly: products.length === 0 && customerOutstandingCredit > 0
       };
 
-      // First save the bill
       const response = await Api.post('/bills', billData);
       const savedBill = response.data.bill;
 
-      // Print the bill
       await printBill(savedBill);
 
       toast.success('Bill saved and printed successfully!');
@@ -211,14 +208,12 @@ const BillingSystem = ({
   const calculateGST = () =>
     products.reduce((sum, item) => {
       const baseAmount = (item.gstAmount * item.quantity);
-      // const gstAmount = (baseAmount * (item.gst*item.quantity)) / 100;
       return sum + (baseAmount);
     }, 0);
 
   const calculateSGST = () =>
     products.reduce((sum, item) => {
       const baseAmount = (item.sgstAmount * item.quantity);
-      // const gstAmount = (baseAmount * (item.gst*item.quantity)) / 100;
       return sum + (baseAmount);
     }, 0);
 
@@ -267,127 +262,123 @@ const BillingSystem = ({
     setShowPaymentModal(true);
   };
 
-  //   // Pass data for a potential new bill.
-  //   // If only outstanding is being paid, currentBillTotal will be 0, and products will be empty.
-  //   setCurrentBill({
-  //     customer,
-  //     products, // Products for the NEW bill
-  //     productSubtotal: calculateProductsSubtotal(),
-  //     currentBillTotal: calculateCurrentBillTotal(), // Total for the NEW products
-  //     previousOutstandingCredit: customerOutstandingCredit, // Full outstanding
-  //     grandTotal: calculateGrandTotal(), // Combined total, for display/initial payment amount
-  //     date: new Date().toISOString(),
-  //     // Generate a bill number ONLY if there are new products.
-  //     // Otherwise, the backend will handle updates to existing bills.
-  //     billNumber: calculateCurrentBillTotal() > 0 ? `BILL-${customer.id || 'NEW'}-${Date.now()}` : '',
-  //   });
-  //   setShowPaymentModal(true);
-  // };
+  const handlePaymentComplete = async (paymentDetails) => {
+  if (!currentBill) {
+    toast.error('No bill data available for payment. Please try again.');
+    return;
+  }
 
-  // const handlePaymentComplete = async (paymentDetails) => {
-  //   if (!currentBill) {
-  //     toast.error('No bill data available for payment. Please try again.');
-  //     return;
-  //   }
-  // }
-const handlePaymentComplete = async (paymentDetails) => {
-    if (!currentBill) {
-      toast.error('No bill data available for payment. Please try again.');
-      return;
-    }
+  setIsSaving(true);
+  const userData = JSON.parse(localStorage.getItem('loggedInUser'));
 
-    setIsSaving(true);
-    const userData = JSON.parse(localStorage.getItem('loggedInUser'));
+  const cashier = {
+    cashierId: userData.cashierId,
+    cashierName: userData.cashierName,
+    counterNum: userData.counterNum,
+    contactNumber: userData.contactNumber,
+  };
 
-    const cashier = {
-      cashierId: userData.cashierId,
-      cashierName: userData.cashierName,
-      counterNum: userData.counterNum,
-      contactNumber: userData.contactNumber,
+  try {
+    const productSubtotal = calculateSubtotal();
+    const totalGst = calculateGST();
+    const totalSgst = calculateSGST();
+    const productTotalWithTax = calculateProductsSubtotal();
+    const currentBillTotal = calculateCurrentBillTotal();
+    const grandTotal = calculateGrandTotal();
+    
+    const outstandingPayment = Math.round(paymentDetails.selectedOutstandingPayment);
+    const currentPayment = Math.round(paymentDetails.currentBillPayment);
+    const unpaidAmountForThisBill = Math.max(0, grandTotal - (outstandingPayment + currentPayment));
+
+    const isNewBillPresent = products.length > 0;
+
+    const completeBill = {
+      customer: {
+        id: currentBill.customer.id || null,
+        name: currentBill.customer.name || '',
+        contact: currentBill.customer.contact || '',
+        aadhaar: currentBill.customer.aadhaar || '',
+        location: currentBill.customer.location || ''
+      },
+      ...(isNewBillPresent && {
+        products: currentBill.products.map(p => ({
+          name: p.name,
+          code: p.code,
+          mrpPrice: Number(p.mrpPrice),
+          price: Number(p.price),
+          quantity: Number(p.quantity),
+          unit: p.unit,
+          totalPrice: Number(p.totalPrice),
+          discount: Number(p.discount),
+          basicPrice: Number(p.basicPrice),
+          gst: Number(p.gst),
+          sgst: Number(p.sgst),
+          gstAmount: Number(p.gstAmount),
+          sgstAmount: Number(p.sgstAmount),
+          hsnCode: p.hsnCode
+        }))
+      }),
+      transportCharge: Number(transportCharge || 0),
+      productSubtotal: productSubtotal,
+      totalGst: totalGst,
+      totalSgst: totalSgst,
+      productTotalWithTax: productTotalWithTax,
+      currentBillTotal: currentBillTotal,
+      previousOutstandingCredit: customerOutstandingCredit,
+      grandTotal: grandTotal,
+      unpaidAmountForThisBill: unpaidAmountForThisBill,
+      payment: {
+        method: paymentDetails.method || 'cash',
+        amountPaid: paymentDetails.amountPaid,
+        currentBillPayment: currentPayment,
+        selectedOutstandingPayment: outstandingPayment,
+        transactionId: paymentDetails.transactionId || '',
+        paymentDate: new Date().toISOString()
+      },
+      billNumber: currentBill.billNumber || (isNewBillPresent 
+        ? `BILL-${Date.now()}` 
+        : `CREDIT-${Date.now()}`),
+      selectedUnpaidBillIds: paymentDetails.selectedUnpaidBillIds || [],
+      isOutstandingPaymentOnly: !isNewBillPresent,
+      cashier,
+      customerId: currentBill.customer.id || null,
+      amountPaid: paymentDetails.amountPaid,
+      paymentMethod: paymentDetails.method
     };
 
-    try {
-      // Calculate all required amounts
-      const productSubtotal = calculateSubtotal();
-      const totalGst = calculateGST();
-      const totalSgst = calculateSGST();
-      const productTotalWithTax = calculateProductsSubtotal();
-      const currentBillTotal = calculateCurrentBillTotal();
-      const grandTotal = calculateGrandTotal();
-      
-      const outstandingPayment = Math.round(paymentDetails.selectedOutstandingPayment);
-      const currentPayment = Math.round(paymentDetails.currentBillPayment);
-      const unpaidAmountForThisBill = grandTotal - (outstandingPayment + currentPayment);
+    const apiUrl = isNewBillPresent ? '/bills' : '/bills/settle-outstanding';
+    const response = await Api.post(apiUrl, completeBill);
 
-      const isNewBillPresent = products.length > 0;
-
-      // Prepare complete bill data with all tax and charge details
-      const completeBill = {
-        customer: {
-          id: currentBill.customer.id || null,
-          name: currentBill.customer.name || '',
-          contact: currentBill.customer.contact || '',
-          aadhaar: currentBill.customer.aadhaar || '',
-          location: currentBill.customer.location || ''
-        },
-        ...(isNewBillPresent && {
-          products: currentBill.products.map(p => ({
-            name: p.name,
-            code: p.code,
-            mrpPrice:Number(p.mrpPrice),
-            price: Number(p.price),
-            quantity: Number(p.quantity),
-            unit: p.unit,
-            totalPrice: Number(p.totalPrice),
-            discount: Number(p.discount),
-            basicPrice: Number(p.basicPrice),
-            gst: Number(p.gst),
-            sgst: Number(p.sgst),
-            gstAmount: Number(p.gstAmount),
-            sgstAmount: Number(p.sgstAmount),
-            hsnCode: p.hsnCode
-          }))
-        }),
-        transportCharge: Number(transportCharge || 0),
-        productSubtotal: productSubtotal,
-        totalGst: totalGst,
-        totalSgst: totalSgst,
-        productTotalWithTax: productTotalWithTax,
-        currentBillTotal: currentBillTotal,
-        previousOutstandingCredit: customerOutstandingCredit,
-        grandTotal: grandTotal,
-        unpaidAmountForThisBill: Math.max(0, unpaidAmountForThisBill),
-        payment: {
-          method: paymentDetails.method || 'cash',
-          currentBillPayment: currentPayment,
-          selectedOutstandingPayment: outstandingPayment,
-          transactionId: paymentDetails.transactionId || '',
-          amountPaid: paymentDetails.amountPaid
-        },
-        billNumber: currentBill.billNumber || `BILL-${Date.now()}`,
-        selectedUnpaidBillIds: paymentDetails.selectedUnpaidBillIds || [],
-        isOutstandingPaymentOnly: !isNewBillPresent,
-        cashier
-      };
-
-      const apiUrl = isNewBillPresent ? '/bills' : '/bills/settle-outstanding';
-      const response = await Api.post(apiUrl, completeBill);
-
-      if (response.data.success) {
-        // Print the bill after successful payment
-        await printBill(response.data.bill);
-        toast.success('Payment successful and bill saved!');
-        handleFinalClose();
-      } else {
-        throw new Error(response.data.message || 'Payment failed');
-      }
-    } catch (error) {
-      console.error('❌ Error during payment:', error);
-      toast.error(error.message || 'Payment failed');
-    } finally {
-      setIsSaving(false);
+    // Handle successful response
+    if (response.data && (response.data.success || response.data.message === 'Outstanding bills settled successfully.')) {
+      await printBill(response.data.bill || {
+        ...completeBill,
+        _id: Date.now().toString(), // Temporary ID for printing
+        createdAt: new Date().toISOString()
+      });
+      toast.success('Payment successful and bill saved!');
+      handleFinalClose();
+    } else {
+      throw new Error(response.data?.message || 'Payment failed without error message');
     }
-  };
+  } catch (error) {
+    console.error('Error during payment:', error);
+    // Check if this is actually a success message from the server
+    if (error.message.includes('Outstanding bills settled successfully')) {
+      await printBill({
+        ...completeBill,
+        _id: Date.now().toString(), // Temporary ID for printing
+        createdAt: new Date().toISOString()
+      });
+      toast.success('Payment successful and bill saved!');
+      handleFinalClose();
+    } else {
+      toast.error(error.message || 'Payment failed. Please check console for details.');
+    }
+  } finally {
+    setIsSaving(false);
+  }
+};
 
   const handleFinalClose = () => {
     setShowPaymentModal(false);
@@ -398,6 +389,7 @@ const handlePaymentComplete = async (paymentDetails) => {
   const handleClosePaymentModal = () => {
     setShowPaymentModal(false);
   };
+
   return (
     <div className="bg-gradient-to-br from-blue-50 to-blue-100 font-inter max-h-screen">
       <div className="mx-auto p-1 max-w-full">

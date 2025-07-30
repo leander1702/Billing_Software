@@ -384,7 +384,7 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge,
       product.selectedUnit || product.baseUnit
     );
 
-    if (stockCheck.isAvailable  && !stockCheck.isAvailable) {
+    if (stockCheck.isAvailable && !stockCheck.isAvailable) {
       const availableInRequestedUnit = stockCheck.availableDisplay.toFixed(2);
       const requestedUnit = product.selectedUnit || product.baseUnit;
 
@@ -552,7 +552,7 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge,
             </div>
 
             {/* HSN Code */}
-            <div className="col-span-1">
+            {/* <div className="col-span-1">
               <label className="block text-xs font-medium text-gray-700 mb-1">HSN Code</label>
               <input
                 type="text"
@@ -562,7 +562,7 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge,
                 ref={hsnCodeInputRef}
                 className="no-arrows w-full px-3 py-1 text-sm border border-gray-300 rounded-sm focus:ring-blue-500 focus:border-blue-500"
               />
-            </div>
+            </div> */}
 
             {/* Unit Selection */}
             <div className="col-span-1">
@@ -642,12 +642,13 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge,
             <div className="col-span-1">
               <label className="block text-xs font-medium text-gray-700 mb-1">Price*</label>
               <input
-                type="text"
+                type="number"
                 name="price"
                 value={product.price}
                 onChange={handleChange}
-                inputMode="numeric"
-                pattern="[0-9]*[.,]?[0-9]*"
+                inputMode="decimal"
+                step="0.01"
+                min="0"
                 ref={priceInputRef}
                 className="no-arrows w-full px-3 py-1 text-sm border border-gray-300 rounded-sm focus:ring-blue-500 focus:border-blue-500"
                 required

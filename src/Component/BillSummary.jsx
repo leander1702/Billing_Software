@@ -167,7 +167,7 @@ function BillSummary({
             }`}
             ref={paymentButtonRef}
           >
-            Payment
+            Credits
           </button>
         </div>
       </div>
