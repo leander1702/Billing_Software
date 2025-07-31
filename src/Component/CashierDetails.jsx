@@ -74,14 +74,14 @@ const CashierDetails = () => {
             <p className="text-xs font-medium text-gray-800">{cashier.cashierName}</p>
           </div>
 
-          <div className="col-span-2">
+          {/* <div className="col-span-2">
             <button 
               onClick={handleLogout}
               className="w-full mt-2 py-1 px-2 bg-red-50 text-red-600 text-xs font-medium rounded border border-red-100 hover:bg-red-100 transition-colors"
             >
               Logout
             </button>
-          </div>
+          </div> */}
         </div>
       ) : (
         <div className="text-center py-3 text-gray-500">

@@ -76,7 +76,7 @@ const App = () => {
           </AuthWrapper>
         } />
       </Routes>
-      {/* <Navbar
+      <Navbar
         onFocusProductSearch={focusProductSearchRef}
         onFocusProductCode={focusProductCodeRef}
         onFocusQuantity={focusQuantityRef}
@@ -86,7 +86,7 @@ const App = () => {
         onTriggerHold={triggerHoldRef}
         onTriggerPrint={triggerPrintRef}
         onTriggerPayment={triggerPaymentRef}
-      /> */}
+      />
     </>
   );
 };

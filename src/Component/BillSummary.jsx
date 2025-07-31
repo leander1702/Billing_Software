@@ -92,8 +92,8 @@ function BillSummary({
   };
 
   return (
-    <div className="bg-white p-3 border border-gray-200 rounded-sm sticky">
-      <h2 className="text-sm font-semibold mb-2">Bill Summary</h2>
+    <div className="bg-white p-2 border border-gray-200 rounded-sm sticky">
+      <h2 className="text-sm font-semibold mb-1 ">Bill Summary</h2>
       <div className="space-y-2">
         <div className="border-t border-gray-200 pt-2">
           <div className="flex justify-between text-sm mb-1">
@@ -115,14 +115,14 @@ function BillSummary({
             </span>
           </div>
           
-          {transportCharge > 0 && (
+        
             <div className="flex justify-between text-sm mb-1">
               <span className="text-gray-600">Transport Charge:</span>
               <span className="font-medium">
                 ₹{transportCharge.toFixed(2)}
               </span>
             </div>
-          )}
+       
 
           <div className="flex justify-between border-t border-gray-200 pt-2 mt-1 text-sm">
             <span className="font-semibold">Current Bill Total:</span>
@@ -144,7 +144,7 @@ function BillSummary({
           </div>
         </div>
 
-        <div className="flex gap-2 pt-3">
+        <div className="flex gap-2 pt-1">
           <button
             onClick={onPrint}
             disabled={products.length >= 0 && customerOutstandingCredit > 0}

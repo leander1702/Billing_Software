@@ -128,71 +128,75 @@ function CustomerDetails({ customer, onSubmit, onFocusCustomerName, onFocusPhone
     setFormData(prev => ({ ...prev, location: e.target.value }));
   };
 
- const handleSubmit = async (e) => {
-  e.preventDefault();
-  const { name, contact, aadhaar, location } = formData;
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const { name, contact, aadhaar, location } = formData;
 
-  if (!name.trim()) {
-    toast.error('Please enter customer name');
-    return;
-  }
-  if (contact.length !== 10) {
-    toast.error('Please enter 10-digit contact number');
-    return;
-  }
-
-  try {
-    setIsLoading(true);
-
-    if (foundInDB) {
-      onSubmit(formData);
+    if (!name.trim()) {
+      toast.error('Please enter customer name');
+      return;
+    }
+    if (contact.length !== 10) {
+      toast.error('Please enter 10-digit contact number');
       return;
     }
 
-    // Save new customer
-    const response = await Api.post('/customers', {
-      name,
-      contact,
-      aadhaar: aadhaar.replace(/-/g, ''),
-      location
-    });
+    try {
+      setIsLoading(true);
 
-    const data = response.data;
-    toast.success('Customer saved successfully');
-    
-    // Update form data with the response from server
-    setFormData({
-      name: data.name || '',
-      contact: data.contact || '',
-      aadhaar: data.aadhaar || '',
-      location: data.location || ''
-    });
-    
-    // Mark as found in DB and disable editing
-    setFoundInDB(true);
-    setIsEditing(false);
-    
-    // Call the onSubmit prop with the new customer data
-    onSubmit(data);
+      if (foundInDB) {
+        onSubmit(formData);
+        return;
+      }
 
-  } catch (err) {
-    console.error('Error saving customer:', err);
-    toast.error(err.response?.data?.message || 'Failed to save customer');
-  } finally {
-    setIsLoading(false);
-  }
-};
+      // Save new customer
+      const response = await Api.post('/customers', {
+        name,
+        contact,
+        aadhaar: aadhaar.replace(/-/g, ''),
+        location
+      });
 
-  return (
-    <div className="bg-white p-3 border border-gray-200 rounded-sm">
-      <h2 className="text-sm font-semibold pb-1">Customer Details</h2>
-      <div className="border-t border-gray-100 mb-2"></div>
+      const data = response.data;
+      toast.success('Customer saved successfully');
 
-      <form onSubmit={handleSubmit} className="space-y-3">
-        {/* Contact */}
+      // Update form data with the response from server
+      setFormData({
+        name: data.name || '',
+        contact: data.contact || '',
+        aadhaar: data.aadhaar || '',
+        location: data.location || ''
+      });
+
+      // Mark as found in DB and disable editing
+      setFoundInDB(true);
+      setIsEditing(false);
+
+      // Call the onSubmit prop with the new customer data
+      onSubmit(data);
+
+    } catch (err) {
+      console.error('Error saving customer:', err);
+      toast.error(err.response?.data?.message || 'Failed to save customer');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+ return (
+  <div className="bg-white p-2 border border-gray-200 rounded-sm shadow-sm">
+    <div className="mb-1">
+      <h2 className="text-sm font-semibold text-gray-800">Customer Details</h2>
+      <div className="border-t border-gray-200 mt-1"></div>
+    </div>
+
+    <form onSubmit={handleSubmit} className="space-y-3">
+      {/* Contact & Name Row */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+        {/* Mobile Number */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Mobile Number *
+            Mobile Number <span className="text-red-500">*</span>
           </label>
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center text-xs text-gray-500 pointer-events-none">
@@ -202,7 +206,8 @@ function CustomerDetails({ customer, onSubmit, onFocusCustomerName, onFocusPhone
               type="tel"
               value={formData.contact}
               onChange={handleContactChange}
-              className="pl-10 w-full py-1 px-2 text-sm border border-gray-300 rounded-sm focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+              className="pl-10 w-full py-1 px-4 text-sm border border-gray-300 rounded-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50"
+              // className="w-full py-1 px-2 text-sm border border-gray-300 rounded-sm focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
               placeholder="9876543210"
               maxLength="10"
               required
@@ -210,48 +215,51 @@ function CustomerDetails({ customer, onSubmit, onFocusCustomerName, onFocusPhone
               ref={contactInputRef}
             />
             {isLoading && (
-              <div className="absolute inset-y-0 right-2 flex items-center">
+              <div className="absolute inset-y-0 right-3 flex items-center">
                 <div className="animate-spin h-4 w-4 border-2 border-blue-500 rounded-full border-t-transparent"></div>
               </div>
             )}
           </div>
         </div>
 
-        {/* Name */}
+        {/* Full Name */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Full Name *
+            Full Name <span className="text-red-500">*</span>
           </label>
           <input
             type="text"
             value={formData.name}
             onChange={handleNameChange}
             disabled={!isEditing || isLoading}
-            className="w-full py-1 px-2 text-sm border border-gray-300 rounded-sm focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+            className="w-full py-1 px-3 text-sm border border-gray-300 rounded-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50"
             placeholder="Enter customer name"
             required
             ref={nameInputRef}
           />
         </div>
+      </div>
 
-        {/* Aadhaar Number (Optional) */}
+      {/* Aadhaar & Location Row */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+        {/* Aadhaar Number */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Aadhaar Number
+            Aadhar Number
           </label>
           <input
             type="text"
             value={formData.aadhaar}
             onChange={handleAadhaarChange}
             disabled={!isEditing || isLoading}
-            className="w-full py-1 px-2 text-sm border border-gray-300 rounded-sm focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+            className="w-full py-1 px-5 text-sm border border-gray-300 rounded-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50"
             placeholder="XXXX-XXXX-XXXX"
-            maxLength="14" // 12 digits + 2 hyphens
+            maxLength="14"
             ref={aadhaarInputRef}
           />
         </div>
 
-        {/* Location (Optional) */}
+        {/* Location */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Location
@@ -261,30 +269,42 @@ function CustomerDetails({ customer, onSubmit, onFocusCustomerName, onFocusPhone
             value={formData.location}
             onChange={handleLocationChange}
             disabled={!isEditing || isLoading}
-            className="w-full py-1 px-2 text-sm border border-gray-300 rounded-sm focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+            className="w-full py-1 px-3 text-sm border border-gray-300 rounded-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50"
             placeholder="Enter location"
             ref={locationInputRef}
           />
         </div>
+      </div>
 
-        {/* Button */}
+      {/* Submit Button */}
+      <div className="pt-2">
         <button
           type="submit"
           disabled={isLoading}
-          className={`w-full py-1.5 px-3 text-sm font-medium text-white rounded-sm shadow-sm ${isLoading ? 'bg-blue-400' : 'bg-blue-600 hover:bg-blue-700'
-            } focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-500`}
+          className={`w-full py-1 px-4 text-sm font-medium text-white rounded-sm shadow-sm transition-colors ${
+            isLoading 
+              ? 'bg-blue-400 cursor-not-allowed' 
+              : 'bg-blue-600 hover:bg-blue-700'
+          } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
         >
           {isLoading ? (
-            'Processing...'
+            <span className="flex items-center justify-center">
+              <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Processing...
+            </span>
           ) : foundInDB ? (
             'Continue with Existing Customer'
           ) : (
             'Save New Customer'
           )}
         </button>
-      </form>
-    </div>
-  );
+      </div>
+    </form>
+  </div>
+);
 }
 
 export default CustomerDetails;
