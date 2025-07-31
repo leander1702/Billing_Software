@@ -341,89 +341,114 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge,
     }));
   };
 
-  const checkStockAvailability = async (productName, quantity, unit) => {
-    try {
-      // First get the product details
-      const productRes = await Api.get(`/products/name/${productName}`);
-      const product = productRes.data;
+const checkStockAvailability = async (productName, quantity, unit) => {
+  try {
+    // First get the product details including unit conversion rates
+    const productRes = await Api.get(`/products/name/${productName}`);
+    const product = productRes.data;
 
-      if (!product) {
-        return { isAvailable: false, available: 0 };
-      }
-
-      // Then get the stock information
-      const stockRes = await Api.get(`/products/check-stock/${product.productCode}`, {
-        params: { unit, quantity }
-      });
-
-      return stockRes.data;
-    } catch (err) {
-      console.error('Error checking stock:', err);
-      return { isAvailable: false, available: 0 };
-    }
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    if (!product.code || !product.quantity) {
-      toast.error("Product code and quantity are required!");
-      return;
+    if (!product) {
+      return { isAvailable: false, available: 0, availableDisplay: 0 };
     }
 
-    const quantityValue = parseFloat(product.quantity);
-    if (isNaN(quantityValue) || quantityValue <= 0) {
-      toast.error("Please enter a valid quantity!");
-      return;
+    // Get the stock information
+    const stockRes = await Api.get(`products/stock/${product.productCode}`);
+    const stockData = stockRes.data;
+    const availableQuantity = stockData.stock?.availableQuantity || 0;
+
+    // Calculate available quantity in the requested unit
+    let availableInRequestedUnit = availableQuantity;
+    let isAvailable = true;
+    let conversionRate = 1;
+
+    if (unit === product.baseUnit) {
+      // For base unit, compare directly
+      isAvailable = availableQuantity >= quantity;
+      availableInRequestedUnit = availableQuantity;
+    } else if (unit === product.secondaryUnit) {
+      // For secondary unit, convert to base unit for comparison
+      conversionRate = product.conversionRate || 1;
+      const requestedQuantityInBase = quantity;
+      isAvailable = availableQuantity >= requestedQuantityInBase;
+      availableInRequestedUnit = availableQuantity * conversionRate;
     }
 
-    // Check stock availability
-    const stockCheck = await checkStockAvailability(
-      product.name,
-      quantityValue,
-      product.selectedUnit || product.baseUnit
-    );
-
-    if (stockCheck.isAvailable && !stockCheck.isAvailable) {
-      const availableInRequestedUnit = stockCheck.availableDisplay.toFixed(2);
-      const requestedUnit = product.selectedUnit || product.baseUnit;
-
-      await Swal.fire({
-        title: 'Insufficient Stock',
-        html: `Only <b>${availableInRequestedUnit} ${requestedUnit}</b> available for <b>${product.name}</b>`,
-        icon: 'warning',
-        confirmButtonText: 'OK',
-        confirmButtonColor: '#3085d6',
-      });
-      return;
-    }
-
-    const newProduct = {
-      ...product,
-      id: Date.now(),
-      quantity: quantityValue,
-      price: parseFloat(product.price),
-      basicPrice: product.basicPrice,
-      gstAmount: product.gstAmount,
-      sgstAmount: product.sgstAmount,
-      totalPrice: product.totalPrice,
-      unit: product.selectedUnit || product.baseUnit,
-      isManualPrice: product.isManualPrice,
-      availableStock: stockCheck.available,
-      hsnCode: product.hsnCode // Include HSN Code in the product
+    return {
+      isAvailable,
+      available: availableQuantity,
+      availableDisplay: availableInRequestedUnit,
+      unit,
+      conversionRate
     };
+  } catch (err) {
+    console.error('Error checking stock:', err);
+    return { isAvailable: false, available: 0, availableDisplay: 0 };
+  }
+};
 
-    if (editingIndex !== null) {
-      onEdit(editingIndex, newProduct);
-      setEditingIndex(null);
-    } else {
-      onAdd(newProduct);
-    }
+// Then modify the handleSubmit function to use this properly:
+const handleSubmit = async (e) => {
+  e.preventDefault();
 
-    setProduct(initialProduct);
-    setNameSuggestions([]);
-    searchProductInputRef.current?.focus();
+  if (!product.code || !product.quantity) {
+    toast.error("Product code and quantity are required!");
+    return;
+  }
+
+  const quantityValue = parseFloat(product.quantity);
+  if (isNaN(quantityValue) || quantityValue <= 0) {
+    toast.error("Please enter a valid quantity!");
+    return;
+  }
+
+  // Check stock availability
+  const stockCheck = await checkStockAvailability(
+    product.name,
+    quantityValue,
+    product.selectedUnit || product.baseUnit
+  );
+
+  if (!stockCheck.isAvailable) {
+    const availableInRequestedUnit = stockCheck.availableDisplay.toFixed(2);
+    const requestedUnit = product.selectedUnit || product.baseUnit;
+
+    await Swal.fire({
+      title: 'Insufficient Stock',
+      html: `Only <b>${availableInRequestedUnit} ${requestedUnit}</b> available for <b>${product.name}</b>`,
+      icon: 'warning',
+      confirmButtonText: 'OK',
+      confirmButtonColor: '#3085d6',
+    });
+    return;
+  }
+
+  // Rest of your submit logic...
+  const newProduct = {
+    ...product,
+    id: Date.now(),
+    quantity: quantityValue,
+    price: parseFloat(product.price),
+    basicPrice: product.basicPrice,
+    gstAmount: product.gstAmount,
+    sgstAmount: product.sgstAmount,
+    totalPrice: product.totalPrice,
+    unit: product.selectedUnit || product.baseUnit,
+    isManualPrice: product.isManualPrice,
+    availableStock: stockCheck.available,
+    hsnCode: product.hsnCode
   };
+
+  if (editingIndex !== null) {
+    onEdit(editingIndex, newProduct);
+    setEditingIndex(null);
+  } else {
+    onAdd(newProduct);
+  }
+
+  setProduct(initialProduct);
+  setNameSuggestions([]);
+  searchProductInputRef.current?.focus();
+};
 
   const handleEdit = (index) => {
     const productToEdit = products[index];
