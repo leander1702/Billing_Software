@@ -292,14 +292,14 @@ const PrintableBill = ({ billData = {}, companyDetails = {} }) => {
 
             {/* Terms & Conditions Section */}
             <div className='flex justify-between border-t border-black'>
-                <div className="mb-2 pt-2">
+                {/* <div className="mb-2 pt-2">
                     <h3 className="font-semibold mb-1 text-lg">Terms & Conditions:</h3>
                     <ol className="list-decimal pl-5 space-y-1">
                         <li>Goods once sold cannot be taken back or exchanged.</li>
                         <li>Warranty and guarantee will be as per manufacturer's policy.</li>
                         <li>All disputes are subject to Tingpur jurisdiction only.</li>
                     </ol>
-                </div>
+                </div> */}
                 <div className="mt-8 text-center">
                     <p className="font-semibold text-right">Authorized Signatory</p>
                     <div className="mt-2 inline-block border-t border-black pt-1">
