@@ -4,6 +4,8 @@ import { toast } from 'react-toastify';
 import { FiEdit2, FiTrash2, FiSearch, FiPlus, FiRefreshCw } from 'react-icons/fi';
 import Api from '../services/api';
 import Swal from 'sweetalert2';
+import CalculatorPopup from './CalculatorPopup';
+
 
 function ProductList({ products, onAdd, onEdit, onRemove, transportCharge,
   onTransportChargeChange = (value) => { }, }) {
@@ -39,7 +41,7 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge,
   const [nameSuggestions, setNameSuggestions] = useState([]);
   const [showNameSuggestions, setShowNameSuggestions] = useState(false);
   const [localTransportCharge, setLocalTransportCharge] = useState(transportCharge);
-
+  const [showCalculator, setShowCalculator] = useState(false);
   const unitTypes = [
     { value: 'piece', label: 'Pcs' },
     { value: 'box', label: 'Box' },
@@ -111,7 +113,7 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge,
         let price = productData.mrp || 0;
 
         if (selectedUnit === productData.secondaryUnit) {
-          price = productData.perUnitPrice  || (productData.mrp / product.conversionRate);
+          price = productData.perUnitPrice || (productData.mrp / product.conversionRate);
           price = Math.round(price * 10) / 10;
         }
 
@@ -489,61 +491,37 @@ const handleSubmit = async (e) => {
   return (
     <div className="flex flex-col h-full relative">
       {/* Product Form */}
-      <div className="bg-white p-4 border border-gray-200 ">
-        <form onSubmit={handleSubmit}>
-          <div className="flex flex-col md:flex-row items-center justify-between gap-3 mb-3">
-            <div className="relative flex-1 w-full">
+      <div className="bg-white p-2 border border-gray-200 rounded-sm shadow-sm">
+        <form onSubmit={handleSubmit} className="space-y-2">
+          {/* Search Bar */}
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4 ">
+            <div className="relative w-full md:w-1/3">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <FiSearch className="text-gray-400" />
               </div>
               <input
                 type="text"
-                placeholder="Search products by code..."
-                className="w-3/4 pl-10 pr-3 py-1 text-sm border border-gray-300 rounded-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Search product code or name"
+                className="w-full pl-10 pr-3 py-1 text-sm border border-gray-300 rounded-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 ref={searchProductInputRef}
               />
             </div>
-            <button
-              type="submit"
-              className={`px-4 py-1 text-sm rounded-sm flex items-center gap-2 ${editingIndex !== null
-                ? 'bg-yellow-500 hover:bg-yellow-600'
-                : 'bg-blue-600 hover:bg-blue-700'
-                } text-white transition-colors`}
-              ref={addProductButtonRef}
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <>
-                  <FiRefreshCw className="animate-spin" />
-                  Loading...
-                </>
-              ) : editingIndex !== null ? (
-                <>
-                  <FiEdit2 />
-                  Update
-                </>
-              ) : (
-                <>
-                  <FiPlus />
-                  Add Product
-                </>
-              )}
-            </button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-9 gap-2">
+          {/* Product Form Grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-9 gap-2">
             {/* Product Code */}
             <div className="col-span-1">
-              <label className="block text-xs font-medium text-gray-700 mb-1">Code*</label>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Code <span className="text-red-500">*</span></label>
               <input
                 type="text"
                 name="code"
                 value={product.code}
                 onChange={handleChange}
                 ref={productCodeInputRef}
-                className="w-full px-3 py-1 text-sm border border-gray-300 rounded-sm focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-1 text-sm border border-gray-300 rounded-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 required
               />
             </div>
@@ -559,14 +537,14 @@ const handleSubmit = async (e) => {
                 onFocus={() => setShowNameSuggestions(true)}
                 onBlur={() => setTimeout(() => setShowNameSuggestions(false), 200)}
                 ref={productNameInputRef}
-                className="w-full px-3 py-1 text-sm border border-gray-300 rounded-sm focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-1 text-sm border border-gray-300 rounded-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
               {showNameSuggestions && nameSuggestions.length > 0 && (
-                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto">
+                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-sm shadow-lg max-h-60 overflow-auto">
                   {nameSuggestions.map((item, index) => (
                     <div
                       key={index}
-                      className="px-4 py-1 hover:bg-blue-50 cursor-pointer border-b border-gray-100"
+                      className="px-3 py-1 hover:bg-blue-50 cursor-pointer border-b border-gray-100 text-sm"
                       onClick={() => handleSelectNameSuggestion(item)}
                     >
                       <div className="font-medium">{item.productName}</div>
@@ -576,19 +554,6 @@ const handleSubmit = async (e) => {
               )}
             </div>
 
-            {/* HSN Code */}
-            {/* <div className="col-span-1">
-              <label className="block text-xs font-medium text-gray-700 mb-1">HSN Code</label>
-              <input
-                type="text"
-                name="hsnCode"
-                value={product.hsnCode}
-                onChange={handleChange}
-                ref={hsnCodeInputRef}
-                className="no-arrows w-full px-3 py-1 text-sm border border-gray-300 rounded-sm focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div> */}
-
             {/* Unit Selection */}
             <div className="col-span-1">
               <label className="block text-xs font-medium text-gray-700 mb-1">Unit</label>
@@ -596,7 +561,7 @@ const handleSubmit = async (e) => {
                 name="selectedUnit"
                 value={product.selectedUnit || product.baseUnit}
                 onChange={handleUnitChange}
-                className="w-full px-3 py-1 text-sm border border-gray-300 rounded-sm focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-1 text-sm border border-gray-300 rounded-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 disabled={isLoading}
               >
                 {availableUnits.map(unit => (
@@ -609,7 +574,7 @@ const handleSubmit = async (e) => {
 
             {/* Quantity */}
             <div className="col-span-1">
-              <label className="block text-xs font-medium text-gray-700 mb-1">Qty*</label>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Qty <span className="text-red-500">*</span></label>
               <input
                 type="text"
                 name="quantity"
@@ -618,12 +583,12 @@ const handleSubmit = async (e) => {
                 ref={quantityInputRef}
                 inputMode="numeric"
                 pattern="[0-9]*[.,]?[0-9]*"
-                className="no-arrows w-full px-3 py-1 text-sm border border-gray-300 rounded-sm focus:ring-blue-500 focus:border-blue-500"
+                className="no-arrows w-full px-3 py-1 text-sm border border-gray-300 rounded-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 required
               />
             </div>
 
-            {/* Basic Price (excluding taxes) */}
+            {/* Basic Price */}
             <div className="col-span-1">
               <label className="block text-xs font-medium text-gray-700 mb-1">Basic Price</label>
               <input
@@ -631,7 +596,7 @@ const handleSubmit = async (e) => {
                 name="basicPrice"
                 value={product.basicPrice.toFixed(2)}
                 readOnly
-                className="w-full px-3 py-1 text-sm border bg-gray-100 rounded-sm"
+                className="w-full px-3 py-1 text-sm border bg-gray-50 rounded-sm"
               />
             </div>
 
@@ -645,7 +610,7 @@ const handleSubmit = async (e) => {
                 onChange={handleChange}
                 inputMode="numeric"
                 pattern="[0-9]*[.,]?[0-9]*"
-                className="no-arrows w-full px-3 py-1 text-sm border border-gray-300 rounded-sm focus:ring-blue-500 focus:border-blue-500"
+                className="no-arrows w-full px-3 py-1 text-sm border border-gray-300 rounded-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
 
@@ -659,13 +624,13 @@ const handleSubmit = async (e) => {
                 onChange={handleChange}
                 inputMode="numeric"
                 pattern="[0-9]*[.,]?[0-9]*"
-                className="no-arrows w-full px-3 py-1 text-sm border border-gray-300 rounded-sm focus:ring-blue-500 focus:border-blue-500"
+                className="no-arrows w-full px-3 py-1 text-sm border border-gray-300 rounded-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
 
-            {/* Price (including taxes) */}
+            {/* Price */}
             <div className="col-span-1">
-              <label className="block text-xs font-medium text-gray-700 mb-1">Price*</label>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Price <span className="text-red-500">*</span></label>
               <input
                 type="number"
                 name="price"
@@ -675,7 +640,7 @@ const handleSubmit = async (e) => {
                 step="0.01"
                 min="0"
                 ref={priceInputRef}
-                className="no-arrows w-full px-3 py-1 text-sm border border-gray-300 rounded-sm focus:ring-blue-500 focus:border-blue-500"
+                className="no-arrows w-full px-3 py-1 text-sm border border-gray-300 rounded-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 required
               />
             </div>
@@ -688,31 +653,62 @@ const handleSubmit = async (e) => {
                 name="totalPrice"
                 value={product.totalPrice.toFixed(2)}
                 readOnly
-                className="w-full px-3 py-1 text-sm border bg-gray-100 rounded-sm font-medium text-blue-600"
+                className="w-full px-3 py-1 text-sm border bg-gray-50 rounded-sm font-medium text-blue-600"
               />
             </div>
+          </div>
+
+          {/* Add/Update Product Button */}
+          <div className="flex justify-end ">
+            <button
+              type="submit"
+              className={`px-4 py-1 text-sm font-medium rounded-sm shadow-sm flex items-center gap-2 transition-colors ${editingIndex !== null
+                ? 'bg-yellow-500 hover:bg-yellow-600 text-white'
+                : 'bg-blue-600 hover:bg-blue-700 text-white'
+                } ${isLoading ? 'opacity-75 cursor-not-allowed' : ''
+                }`}
+              ref={addProductButtonRef}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <FiRefreshCw className="animate-spin" />
+                  Processing...
+                </>
+              ) : editingIndex !== null ? (
+                <>
+                  <FiEdit2 />
+                  Update Product
+                </>
+              ) : (
+                <>
+                  <FiPlus />
+                  Add Product
+                </>
+              )}
+            </button>
           </div>
         </form>
       </div>
 
       {/* Products Table */}
-      <div className="flex-1 bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
-        <div className="overflow-x-auto" style={{ maxHeight: 'calc(100vh - 250px)' }}>
+      <div className="flex-1 flex flex-col  bg-white border border-gray-200 rounded-sm shadow-sm overflow-hidden">
+        <div className="flex-1 overflow-auto" style={{ maxHeight: 'calc(100vh - 350px)' }}>
           <table className="min-w-full border-collapse text-sm">
             <thead className="bg-gray-100 sticky top-0">
               <tr>
-                <th className="px-4 py-3 text-left border-b font-medium text-gray-700">#</th>
-                <th className="px-4 py-3 text-left border-b font-medium text-gray-700">Code</th>
-                <th className="px-4 py-3 text-left border-b font-medium text-gray-700">Name</th>
-                <th className="px-4 py-3 text-left border-b font-medium text-gray-700">HSN Code</th>
-                <th className="px-4 py-3 text-left border-b font-medium text-gray-700">MRP</th>
-                <th className="px-4 py-3 text-left border-b font-medium text-gray-700">Basic Price</th>
-                <th className="px-4 py-3 text-left border-b font-medium text-gray-700">GST % /<span className='flex'>GST Amt</span></th>
-                <th className="px-4 py-3 text-left border-b font-medium text-gray-700">SGST % /<span className='flex'>SGST Amt</span></th>
-                <th className="px-4 py-3 text-left border-b font-medium text-gray-700">Price</th>
-                <th className="px-4 py-3 text-left border-b font-medium text-gray-700">Qty/unit</th>
-                <th className="px-4 py-3 text-left border-b font-medium text-gray-700">Total</th>
-                <th className="px-4 py-3 text-left border-b font-medium text-gray-700">Action</th>
+                <th className="px-4 py-1 text-left border-b font-medium text-gray-700">S.No</th>
+                <th className="px-4 py-1 text-left border-b font-medium text-gray-700">Code</th>
+                <th className="px-4 py-1 text-left border-b font-medium text-gray-700">Name</th>
+                <th className="px-4 py-1 text-left border-b font-medium text-gray-700">HSN Code</th>
+                <th className="px-4 py-1 text-left border-b font-medium text-gray-700">MRP</th>
+                <th className="px-4 py-1 text-left border-b font-medium text-gray-700">Basic Price</th>
+                <th className="px-4 py-1 text-left border-b font-medium text-gray-700">GST% </th>
+                <th className="px-4 py-1 text-left border-b font-medium text-gray-700">SGST% </th>
+                <th className="px-4 py-1 text-left border-b font-medium text-gray-700">Price</th>
+                <th className="px-4 py-1 text-left border-b font-medium text-gray-700">Qty/unit</th>
+                <th className="px-4 py-1 text-left border-b font-medium text-gray-700">Total</th>
+                <th className="px-4 py-1 text-left border-b font-medium text-gray-700">Action</th>
               </tr>
             </thead>
             <tbody>
@@ -732,8 +728,8 @@ const handleSubmit = async (e) => {
                       <td className="px-4 py-3">{item.hsnCode}</td>
                       <td className="px-4 py-3">₹{item.mrpPrice.toFixed(2)}</td>
                       <td className="px-4 py-3">₹{basicPriceTotal.toFixed(2)}</td>
-                      <td className="px-4 py-3">{item.gst}% <span className='flex'>₹{gstAmountTotal.toFixed(2)}</span></td>
-                      <td className="px-4 py-3">{item.sgst}% <span className='flex'>₹{sgstAmountTotal.toFixed(2)}</span></td>
+                      <td className="px-4 py-3">{item.gst}% </td>
+                      <td className="px-4 py-3">{item.sgst}% </td>
                       <td className="px-4 py-3">₹{priceTotal.toFixed(2)}</td>
                       <td className="px-4 py-3">
                         {Number.isInteger(item.quantity) ? item.quantity : item.quantity.toFixed(2)} {getUnitLabel(item.unit)}
@@ -772,30 +768,54 @@ const handleSubmit = async (e) => {
             </tbody>
           </table>
         </div>
-        {/* Transport Charge Input */}
-        <div className="bg-gray-50 px-6 py-3 border-t">
-          <div className="flex items-center gap-4 w-full">
-            <label className="text-sm font-medium text-gray-700 whitespace-nowrap">Transport Charge:</label>
-            <input
-              type="number"
-              value={localTransportCharge}
-              onChange={handleTransportChargeChange}
-              onBlur={handleTransportBlur}
-              min="0"
-              step="0.01"
-              className="w-32 no-arrows px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-              ref={transportChargeInputRef}
-            />
+        {/* Transport Charge Input */}       
+        <div className="bg-gray-50 py-2 px-4 border-t">
+          <div className='flex justify-between items-center w-full'>
+            {/* Calculator Button (Left) */}
+            <div>
+              <button
+                onClick={() => setShowCalculator(true)}
+                className="px-3 py-1.5 text-sm font-normal text-white bg-gray-500 rounded-md hover:bg-gray-700 transition-colors flex items-center gap-1"
+              >                
+                Calculator
+              </button>
+            </div>
+
+            {/* Transport Charge (Right) */}
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-gray-700 whitespace-nowrap">Transport Charge:</label>
+              <input
+                type="number"
+                value={localTransportCharge}
+                onChange={handleTransportChargeChange}
+                onBlur={handleTransportBlur}
+                min="0"
+                step="0.01"
+                className="w-32 no-arrows px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                ref={transportChargeInputRef}
+              />
+            </div>
+
+            {/* Calculator Popup Component */}
+            {showCalculator && (
+              <CalculatorPopup
+                onClose={() => setShowCalculator(false)}
+                onCalculate={(result) => {
+                  // Handle the calculation result if needed
+                  setShowCalculator(false);
+                }}
+              />
+            )}
           </div>
 
           {/* Footer with total */}
-          {filteredProducts.length > 0 && (
-            <div className="bg-gray-50 px-6 py-3 border-t sticky bottom-0">
-              <div className="flex flex-col sm:flex-row justify-between items-center gap-2">
+          
+            <div className="bg-gray-50  py-2 mt-2 border-t sticky bottom-0">
+              <div className="flex flex-col sm:flex-row justify-between items-center ">
                 <span className="text-sm text-gray-600">
                   {filteredProducts.length} {filteredProducts.length === 1 ? 'item' : 'items'}
                 </span>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-6">
                   <span className="text-sm font-medium text-gray-700">
                     Subtotal: ₹{filteredProducts.reduce((sum, item) => sum + (item.basicPrice * item.quantity), 0).toFixed(2)}
                   </span>
@@ -815,8 +835,7 @@ const handleSubmit = async (e) => {
                   </span>
                 </div>
               </div>
-            </div>
-          )}
+            </div>         
         </div>
       </div>
     </div>
