@@ -9,6 +9,7 @@ import UserLogin from './Component/UserLogin';
 import { ToastContainer } from 'react-toastify';
 import Header from './Component/Header';
 import AuthWrapper from './Component/AuthWrapper';
+import PrintableBill from './Component/PrintableBill';
 
 const App = () => {
   // Create refs for all shortcut actions
@@ -64,6 +65,7 @@ const App = () => {
             </>
           </AuthWrapper>
         } />
+        <Route path='/bill' element={<PrintableBill />} />
 
         <Route path='/Reports' element={
           <AuthWrapper>

@@ -100,7 +100,7 @@ const PaymentModal = ({ currentBillData, onClose, onComplete, isSaving }) => {
     }
   };
 
-  const handleSubmit = (e) => {
+    const handleSubmit = (e) => {
     e.preventDefault();
     if (isSaving) return; // Prevent multiple submissions
 

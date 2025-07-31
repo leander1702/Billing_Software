@@ -147,9 +147,9 @@ function BillSummary({
         <div className="flex gap-2 pt-3">
           <button
             onClick={onPrint}
-            disabled={products.length === 0 && customerOutstandingCredit === 0}
+            disabled={products.length >= 0 && customerOutstandingCredit > 0}
             className={`flex-1 py-1 text-sm rounded-sm focus:outline-none ${
-              (products.length === 0 && customerOutstandingCredit === 0)
+              (products.length  >= 0 && customerOutstandingCredit  > 0)
                 ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 : 'bg-blue-600 text-white hover:bg-blue-700'
             }`}
@@ -167,7 +167,7 @@ function BillSummary({
             }`}
             ref={paymentButtonRef}
           >
-            Payment
+            Credits
           </button>
         </div>
       </div>
