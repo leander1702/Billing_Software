@@ -1,6 +1,342 @@
 import React from 'react';
 
-const PrintableBill = ({ billData = {}, companyDetails = {} }) => {
+const PrintableBill = ({ billData =
+    {
+        "customer": {
+            "id": 1000,
+            "name": "Dinakaran",
+            "contact": "9940935315",
+            "aadhaar": "5346-3563-8763",
+            "location": "sivagangai"
+        },
+        "cashier": {
+            "cashierId": "987654321",
+            "cashierName": "Dinakaran",
+            "counterNum": "2",
+            "contactNumber": "9940935315"
+        },
+        "products": [
+            {
+                "name": "DAP",
+                "code": "04147",
+                "price": 1100,
+                "mrpPrice": 1500,
+                "quantity": 1,
+                "unit": "bag",
+                "totalPrice": 1100,
+                "discount": 0,
+                "basicPrice": 1047.6190476190475,
+                "gst": 5,
+                "sgst": 0,
+                "gstAmount": 52.38095238095238,
+                "sgstAmount": 0,
+                "hsnCode": "9989",
+                "_id": {
+                    "$oid": "688b5bffea9998ff2ccac2c3"
+                }
+            },
+            {
+                "name": "sulphate",
+                "code": "8904024503917",
+                "price": 1800,
+                "mrpPrice": 2000,
+                "quantity": 1,
+                "unit": "bag",
+                "totalPrice": 1800,
+                "discount": 0,
+                "basicPrice": 1714.2857142857142,
+                "gst": 5,
+                "sgst": 0,
+                "gstAmount": 85.71428571428572,
+                "sgstAmount": 0,
+                "hsnCode": "12345",
+                "_id": {
+                    "$oid": "688b5bffea9998ff2ccac2c4"
+                }
+            },
+            {
+                "name": "sulphate",
+                "code": "8904024503917",
+                "price": 1800,
+                "mrpPrice": 2000,
+                "quantity": 1,
+                "unit": "bag",
+                "totalPrice": 1800,
+                "discount": 0,
+                "basicPrice": 1714.2857142857142,
+                "gst": 5,
+                "sgst": 0,
+                "gstAmount": 85.71428571428572,
+                "sgstAmount": 0,
+                "hsnCode": "12345",
+                "_id": {
+                    "$oid": "688b5bffea9998ff2ccac2c5"
+                }
+            },
+            {
+                "name": "sulphate",
+                "code": "8904024503917",
+                "price": 1800,
+                "mrpPrice": 2000,
+                "quantity": 1,
+                "unit": "bag",
+                "totalPrice": 1800,
+                "discount": 0,
+                "basicPrice": 1714.2857142857142,
+                "gst": 5,
+                "sgst": 0,
+                "gstAmount": 85.71428571428572,
+                "sgstAmount": 0,
+                "hsnCode": "12345",
+                "_id": {
+                    "$oid": "688b5bffea9998ff2ccac2c6"
+                }
+            },
+            {
+                "name": "sulphate",
+                "code": "8904024503917",
+                "price": 1800,
+                "mrpPrice": 2000,
+                "quantity": 1,
+                "unit": "bag",
+                "totalPrice": 1800,
+                "discount": 0,
+                "basicPrice": 1714.2857142857142,
+                "gst": 5,
+                "sgst": 0,
+                "gstAmount": 85.71428571428572,
+                "sgstAmount": 0,
+                "hsnCode": "12345",
+                "_id": {
+                    "$oid": "688b5bffea9998ff2ccac2c7"
+                }
+            },
+            {
+                "name": "sulphate",
+                "code": "8904024503917",
+                "price": 1800,
+                "mrpPrice": 2000,
+                "quantity": 1,
+                "unit": "bag",
+                "totalPrice": 1800,
+                "discount": 0,
+                "basicPrice": 1714.2857142857142,
+                "gst": 5,
+                "sgst": 0,
+                "gstAmount": 85.71428571428572,
+                "sgstAmount": 0,
+                "hsnCode": "12345",
+                "_id": {
+                    "$oid": "688b5bffea9998ff2ccac2c8"
+                }
+            },
+            {
+                "name": "sulphate",
+                "code": "8904024503917",
+                "price": 1800,
+                "mrpPrice": 2000,
+                "quantity": 2,
+                "unit": "bag",
+                "totalPrice": 3600,
+                "discount": 0,
+                "basicPrice": 1714.2857142857142,
+                "gst": 5,
+                "sgst": 0,
+                "gstAmount": 85.71428571428572,
+                "sgstAmount": 0,
+                "hsnCode": "12345",
+                "_id": {
+                    "$oid": "688b5bffea9998ff2ccac2c9"
+                }
+            },
+            {
+                "name": "urea",
+                "code": "8906004862434",
+                "price": 1500,
+                "mrpPrice": 2000,
+                "quantity": 1,
+                "unit": "bag",
+                "totalPrice": 1500,
+                "discount": 0,
+                "basicPrice": 1428.5714285714284,
+                "gst": 5,
+                "sgst": 0,
+                "gstAmount": 71.42857142857143,
+                "sgstAmount": 0,
+                "hsnCode": "45678",
+                "_id": {
+                    "$oid": "688b5bffea9998ff2ccac2ca"
+                }
+            },
+            {
+                "name": "sulphate",
+                "code": "8904024503917",
+                "price": 1800,
+                "mrpPrice": 2000,
+                "quantity": 1,
+                "unit": "bag",
+                "totalPrice": 1800,
+                "discount": 0,
+                "basicPrice": 1714.2857142857142,
+                "gst": 5,
+                "sgst": 0,
+                "gstAmount": 85.71428571428572,
+                "sgstAmount": 0,
+                "hsnCode": "12345",
+                "_id": {
+                    "$oid": "688b5bffea9998ff2ccac2cb"
+                }
+            },
+            {
+                "name": "urea",
+                "code": "8906004862434",
+                "price": 1500,
+                "mrpPrice": 2000,
+                "quantity": 1,
+                "unit": "bag",
+                "totalPrice": 1500,
+                "discount": 0,
+                "basicPrice": 1428.5714285714284,
+                "gst": 5,
+                "sgst": 0,
+                "gstAmount": 71.42857142857143,
+                "sgstAmount": 0,
+                "hsnCode": "45678",
+                "_id": {
+                    "$oid": "688b5bffea9998ff2ccac2cc"
+                }
+            },
+            {
+                "name": "urea",
+                "code": "8906004862434",
+                "price": 1500,
+                "mrpPrice": 2000,
+                "quantity": 1,
+                "unit": "bag",
+                "totalPrice": 1500,
+                "discount": 0,
+                "basicPrice": 1428.5714285714284,
+                "gst": 5,
+                "sgst": 0,
+                "gstAmount": 71.42857142857143,
+                "sgstAmount": 0,
+                "hsnCode": "45678",
+                "_id": {
+                    "$oid": "688b5bffea9998ff2ccac2cd"
+                }
+            },
+            {
+                "name": "sulphate",
+                "code": "8904024503917",
+                "price": 1800,
+                "mrpPrice": 2000,
+                "quantity": 1,
+                "unit": "bag",
+                "totalPrice": 1800,
+                "discount": 0,
+                "basicPrice": 1714.2857142857142,
+                "gst": 5,
+                "sgst": 0,
+                "gstAmount": 85.71428571428572,
+                "sgstAmount": 0,
+                "hsnCode": "12345",
+                "_id": {
+                    "$oid": "688b5bffea9998ff2ccac2ce"
+                }
+            },
+            {
+                "name": "sulphate",
+                "code": "8904024503917",
+                "price": 1800,
+                "mrpPrice": 2000,
+                "quantity": 1,
+                "unit": "bag",
+                "totalPrice": 1800,
+                "discount": 0,
+                "basicPrice": 1714.2857142857142,
+                "gst": 5,
+                "sgst": 0,
+                "gstAmount": 85.71428571428572,
+                "sgstAmount": 0,
+                "hsnCode": "12345",
+                "_id": {
+                    "$oid": "688b5bffea9998ff2ccac2cf"
+                }
+            },
+            {
+                "name": "sulphate",
+                "code": "8904024503917",
+                "price": 1800,
+                "mrpPrice": 2000,
+                "quantity": 1,
+                "unit": "bag",
+                "totalPrice": 1800,
+                "discount": 0,
+                "basicPrice": 1714.2857142857142,
+                "gst": 5,
+                "sgst": 0,
+                "gstAmount": 85.71428571428572,
+                "sgstAmount": 0,
+                "hsnCode": "12345",
+                "_id": {
+                    "$oid": "688b5bffea9998ff2ccac2d0"
+                }
+            },
+            {
+                "name": "sulphate",
+                "code": "8904024503917",
+                "price": 1800,
+                "mrpPrice": 2000,
+                "quantity": 1,
+                "unit": "bag",
+                "totalPrice": 1800,
+                "discount": 0,
+                "basicPrice": 1714.2857142857142,
+                "gst": 5,
+                "sgst": 0,
+                "gstAmount": 85.71428571428572,
+                "sgstAmount": 0,
+                "hsnCode": "12345",
+                "_id": {
+                    "$oid": "688b5bffea9998ff2ccac2d1"
+                }
+            }
+        ],
+        "transportCharge": 0,
+        "productSubtotal": 27619.04761904761,
+        "totalGst": 1380.9523809523814,
+        "totalSgst": 0,
+        "productTotalWithTax": 28999.999999999993,
+        "currentBillTotal": 28999.999999999993,
+        "previousOutstandingCredit": 0,
+        "grandTotal": 28999.999999999993,
+        "paidAmount": 29000,
+        "unpaidAmountForThisBill": 0,
+        "status": "paid",
+        "billNumber": "BILL-1000-1753963518107",
+        "payment": {
+            "method": "cash",
+            "currentBillPayment": 29000,
+            "selectedOutstandingPayment": 0,
+            "transactionId": ""
+        },
+    }, companyDetails =
+    {
+        "businessName": "Fertilizer Shop",
+        "phoneNumber": "1234567890",
+        "gstin": "07AAGFF2194N1Z1",
+        "email": "adventuretech@gmail.com",
+        "businessType": "Retail",
+        "businessCategory": "others",
+        "state": "Tamil Nadu",
+        "pincode": "641012",
+        "address": "7th street, tatabad, coimbatore",
+        "logoUrl": "https://billing-software-backend-vka8.onrender.com/uploads/1754041945555.png",
+        "signatureUrl": null,
+    } }) => {
+
+
+
     // Format currency (assuming INR) with 2 decimal places
     const formatCurrency = (amount) => {
         const roundedAmount = Math.round((amount || 0) * 100) / 100;
@@ -122,7 +458,7 @@ const PrintableBill = ({ billData = {}, companyDetails = {} }) => {
     };
 
     // Split products into chunks for pagination (10 per page)
-    const productsPerPage = 10;
+    const productsPerPage = 15;
     const productChunks = [];
     const allProducts = billData.products || [];
 
@@ -297,8 +633,8 @@ const PrintableBill = ({ billData = {}, companyDetails = {} }) => {
 
                             {/* Products Table Section */}
                             <h3 className="font-semibold text-left bg-gray-100 mb-1">Bill Details</h3>
-                            <div className="p-1 mb-2 flex-grow">
-                                <table className="w-full">
+                            <div className="p-1 mb-2 flex-grow border-collapse">
+                                <table className="w-full border-collapse">
                                     <thead>
                                         <tr className="border border-black">
                                             <th className="text-center py-1 font-semibold border-r border-black bg-gray-100" style={{ fontSize: '12px' }}>SNO</th>
@@ -326,7 +662,7 @@ const PrintableBill = ({ billData = {}, companyDetails = {} }) => {
                                                     pageIndex === productChunks.length - 1);
 
                                             return (
-                                                <tr key={index} className={`${index % 2 === 0 ? 'bg-gray-50' : ''}`}>
+                                                <tr key={index} className={`border-collapse ${index % 2 === 0 ? 'bg-gray-50' : ''} ${index.lenth ? "border-b border-black" : ""}`}>
                                                     <td className="text-center py-1 border-r border-l border-black" style={{ fontSize: '12px' }}>
                                                         {pageIndex * productsPerPage + index + 1}
                                                     </td>
@@ -355,11 +691,90 @@ const PrintableBill = ({ billData = {}, companyDetails = {} }) => {
                                                         {formatCurrency(total)}
                                                     </td>
                                                 </tr>
+
+
+
+
                                             );
                                         })}
+                                        <tr className='border-collapse' >
+                                            <td colSpan={9} className='py-1 border border-black'>
+                                                {pageIndex === productChunks.length - 1 && (
+                                                    <>
+                                                        {/* Totals Section */}
+                                                        <div className=" p-2 mb-2">
+                                                            <div className="flex justify-between mb-1">
+                                                                <span className="font-semibold text-[12px]">Subtotal:</span>
+                                                                <span>{formatCurrency(totals.subtotal)}</span>
+                                                            </div>
+                                                            <div className="flex justify-between mb-1 ">
+                                                                <span className="font-semibold text-[12px]">CGST:</span>
+                                                                <span>{formatCurrency(totals.gstTotal)}</span>
+                                                            </div>
+                                                            <div className="flex justify-between mb-1">
+                                                                <span className="font-semibold text-[12px]">SGST:</span>
+                                                                <span>{formatCurrency(totals.sgstTotal)}</span>
+                                                            </div>
+                                                            <div className="flex justify-between mb-1 text-[12px]">
+                                                                <span className="font-semibold">Delivery Charges:</span>
+                                                                <span>{formatCurrency(totals.transport)}</span>
+                                                            </div>
+                                                            <div className="flex justify-between mb-1 text-[12px]">
+                                                                <span className="font-semibold">Previous Credit:</span>
+                                                                <span>{formatCurrency(totals.credit)}</span>
+                                                            </div>
 
+                                                            <div className="mt-1 mb-1 border-t border-black pt-1">
+                                                                <span className="font-bold text-md">{billData.isOutstandingPaymentOnly ? 'Total Credit:' : 'Grand Total:'}</span>
+                                                                <span className="font-bold float-right">{formatCurrency(totals.grandTotal)}</span>
+                                                            </div>
+
+                                                            {/* Payment Details Section */}
+                                                            {billData.payment && (
+                                                                <div className="border-t border-black pt-1">
+                                                                    {!billData.isOutstandingPaymentOnly && (
+                                                                        <div className="flex justify-between">
+                                                                            <span className="font-semibold text-[12px]">Current Bill Payment:</span>
+                                                                            <span>{formatCurrency(totals.currentPayment)}</span>
+                                                                        </div>
+                                                                    )}
+                                                                    <div className="flex justify-between">
+                                                                        <span className="font-semibold text-[12px]">Credit Payment:</span>
+                                                                        <span>{formatCurrency(totals.outstandingPayment)}</span>
+                                                                    </div>
+                                                                    <div className="flex justify-between">
+                                                                        <span className="font-semibold text-[12px]">Total Paid:</span>
+                                                                        <span className="font-bold text-black-600">{formatCurrency(totals.totalPaid)}</span>
+                                                                    </div>
+                                                                    {totals.balanceDue > 0 && (
+                                                                        <div className="flex justify-between">
+                                                                            <span className="font-semibold text-[12px]">Balance Due:</span>
+                                                                            <span className="font-semibold text-red-600">{formatCurrency(totals.balanceDue)}</span>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                            <div className='flex justify-between mt-2'>
+
+                                                                <div className="">
+                                                                    <p className="text-[12px]">Amount In Words: {numberToWords(totals.grandTotal)}</p>
+                                                                </div>
+                                                                {billData.payment && (
+                                                                    <div className="">
+                                                                        <p><span className="font-semibold">Payment Method:</span> {billData.payment.method.toUpperCase()}</p>
+                                                                        {billData.payment.transactionId && (
+                                                                            <p><span className="font-semibold">Transaction ID:</span> {billData.payment.transactionId}</p>
+                                                                        )}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </>
+                                                )}
+                                            </td>
+                                        </tr>
                                         {/* Fill remaining rows if less than productsPerPage */}
-                                        {products.length < productsPerPage && Array.from({ length: productsPerPage - products.length }).map((_, index) => {
+                                        {/* {products.length < productsPerPage && Array.from({ length: productsPerPage - products.length }).map((_, index) => {
                                             const isLastRow = (products.length + index) === productsPerPage - 1 ||
                                                 (pageIndex === productChunks.length - 1 &&
                                                     (products.length + index) === (allProducts.length % productsPerPage || productsPerPage) - 1);
@@ -375,9 +790,11 @@ const PrintableBill = ({ billData = {}, companyDetails = {} }) => {
                                                     <td className="py-1 border-r border-l border-black" style={{ fontSize: '12px' }}>&nbsp;</td>
                                                     <td className="py-1 border-r border-l border-black" style={{ fontSize: '12px' }}>&nbsp;</td>
                                                     <td className="py-1 border-r border-l border-black" style={{ fontSize: '12px' }}>&nbsp;</td>
+
                                                 </tr>
                                             );
-                                        })}
+                                        })} */}
+
                                     </tbody>
                                 </table>
                                 {/* <div className="flex justify-between mt-1 text-xs">
@@ -391,75 +808,10 @@ const PrintableBill = ({ billData = {}, companyDetails = {} }) => {
                                 <>
                                     {/* Totals Section */}
                                     <div className="border border-black p-2 mb-2">
-                                        <div className="flex justify-between mb-1">
-                                            <span className="font-semibold">Subtotal:</span>
-                                            <span>{formatCurrency(totals.subtotal)}</span>
-                                        </div>
-                                        <div className="flex justify-between mb-1">
-                                            <span className="font-semibold">CGST:</span>
-                                            <span>{formatCurrency(totals.gstTotal)}</span>
-                                        </div>
-                                        <div className="flex justify-between mb-1">
-                                            <span className="font-semibold">SGST:</span>
-                                            <span>{formatCurrency(totals.sgstTotal)}</span>
-                                        </div>
-                                        <div className="flex justify-between mb-1">
-                                            <span className="font-semibold">Delivery Charges:</span>
-                                            <span>{formatCurrency(totals.transport)}</span>
-                                        </div>
-                                        <div className="flex justify-between mb-1 ">
-                                            <span className="font-semibold">Previous Credit:</span>
-                                            <span>{formatCurrency(totals.credit)}</span>
-                                        </div>
-
-                                        <div className="mt-1 mb-1 border-t border-black pt-1">
-                                            <span className="font-bold text-md">{billData.isOutstandingPaymentOnly ? 'Total Credit:' : 'Grand Total:'}</span>
-                                            <span className="font-bold float-right">{formatCurrency(totals.grandTotal)}</span>
-                                        </div>
-
-                                        {/* Payment Details Section */}
-                                        {billData.payment && (
-                                            <div className="border-t border-black pt-1">
-                                                {!billData.isOutstandingPaymentOnly && (
-                                                    <div className="flex justify-between">
-                                                        <span className="font-semibold">Current Bill Payment:</span>
-                                                        <span>{formatCurrency(totals.currentPayment)}</span>
-                                                    </div>
-                                                )}
-                                                <div className="flex justify-between">
-                                                    <span className="font-semibold">Credit Payment:</span>
-                                                    <span>{formatCurrency(totals.outstandingPayment)}</span>
-                                                </div>
-                                                <div className="flex justify-between">
-                                                    <span className="font-semibold">Total Paid:</span>
-                                                    <span className="font-bold text-black-600">{formatCurrency(totals.totalPaid)}</span>
-                                                </div>
-                                                {totals.balanceDue > 0 && (
-                                                    <div className="flex justify-between">
-                                                        <span className="font-semibold">Balance Due:</span>
-                                                        <span className="font-semibold text-red-600">{formatCurrency(totals.balanceDue)}</span>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        )}
-                                        <div className='flex justify-between mt-2'>
-
-                                            <div className="">
-                                                <p className="text-[12px]">Amount In Words: {numberToWords(totals.grandTotal)}</p>
-                                            </div>
-                                            {billData.payment && (
-                                                <div className="">
-                                                    <p><span className="font-semibold">Payment Method:</span> {billData.payment.method.toUpperCase()}</p>
-                                                    {billData.payment.transactionId && (
-                                                        <p><span className="font-semibold">Transaction ID:</span> {billData.payment.transactionId}</p>
-                                                    )}
-                                                </div>
-                                            )}
-                                        </div>
 
 
                                         {/* Footer Section */}
-                                        <div className="border border-black p-2 mt-auto flex justify-between">
+                                        <div className="bordermt-auto flex justify-between">
                                             <div className="mb-2">
                                                 <h3 className="font-semibold mb-1">Company's Bank Details:</h3>
                                                 <p className="text-xs">Bank Name: {displayValue(companyDetails.bankName, '')}</p>
