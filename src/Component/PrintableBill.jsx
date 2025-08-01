@@ -458,7 +458,7 @@ const PrintableBill = ({ billData =
     };
 
     // Split products into chunks for pagination (10 per page)
-    const productsPerPage = 15;
+    const productsPerPage = 12;
     const productChunks = [];
     const allProducts = billData.products || [];
 
@@ -695,6 +695,26 @@ const PrintableBill = ({ billData =
 
 
 
+                                            );
+                                        })}
+                                        {products.length < productsPerPage && Array.from({ length: productsPerPage - products.length }).map((_, index) => {
+                                            const isLastRow = (products.length + index) === productsPerPage - 1 ||
+                                                (pageIndex === productChunks.length - 1 &&
+                                                    (products.length + index) === (allProducts.length % productsPerPage || productsPerPage) - 1);
+
+                                            return (
+                                                <tr key={`empty-${index}`} className={`${products.length % 2 === 0 ? 'bg-gray-50' : ''} ${isLastRow ? 'border-b border-black' : ''}`}>
+                                                    <td className="py-1 border-r border-l border-black" style={{ fontSize: '12px' }}>&nbsp;</td>
+                                                    <td className="py-1 border-r border-l border-black" style={{ fontSize: '12px' }}>&nbsp;</td>
+                                                    <td className="py-1 border-r border-l border-black" style={{ fontSize: '12px' }}>&nbsp;</td>
+                                                    <td className="py-1 border-r border-l border-black" style={{ fontSize: '12px' }}>&nbsp;</td>
+                                                    <td className="py-1 border-r border-l border-black" style={{ fontSize: '12px' }}>&nbsp;</td>
+                                                    <td className="py-1 border-r border-l border-black" style={{ fontSize: '12px' }}>&nbsp;</td>
+                                                    <td className="py-1 border-r border-l border-black" style={{ fontSize: '12px' }}>&nbsp;</td>
+                                                    <td className="py-1 border-r border-l border-black" style={{ fontSize: '12px' }}>&nbsp;</td>
+                                                    <td className="py-1 border-r border-l border-black" style={{ fontSize: '12px' }}>&nbsp;</td>
+
+                                                </tr>
                                             );
                                         })}
                                         <tr className='border-collapse' >
