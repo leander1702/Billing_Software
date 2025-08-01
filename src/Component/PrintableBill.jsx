@@ -121,197 +121,365 @@ const PrintableBill = ({ billData = {}, companyDetails = {} }) => {
         return `${Math.round(value * 100) / 100}`;
     };
 
+    // Split products into chunks for pagination (10 per page)
+    const productsPerPage = 10;
+    const productChunks = [];
+    const allProducts = billData.products || [];
+
+    for (let i = 0; i < allProducts.length; i += productsPerPage) {
+        productChunks.push(allProducts.slice(i, i + productsPerPage));
+    }
+
     return (
-        <div className="p-5 w-[210mm] h-[297mm] mx-auto font-sans bg-white" style={{ fontSize: '12px', fontFamily: 'Arial, sans-serif' }}>
-            {/* Header Section */}
-            <div className='flex justify-between'>
-                <p className="font-semibold">GSTIN: {displayValue(companyDetails.gstin, 'N/A')}</p>
-                <p className="font-semibold mt-2">{billData.isOutstandingPaymentOnly ? 'Credit Settlement' : 'Original for Buyer'}</p>
-            </div>
-            <div className="text-center mb-4">
-                {companyDetails.logoUrl && (
-                    <div className="flex justify-center mb-2">
-                        <img
-                            src={companyDetails.logoUrl}
-                            alt="Company Logo"
-                            className="h-16 object-contain"
-                        />
-                    </div>
-                )}
-                <h2 className="text-xl font-semibold mb-1">{displayValue(companyDetails.businessName)}</h2>
-                <p className="mb-1">{displayValue(companyDetails.address)}</p>
-                <p className="mb-1">
-                    Phone No: {displayValue(companyDetails.phoneNumber, 'N/A')},
-                    Email: {displayValue(companyDetails.email, 'N/A')}
-                </p>
-            </div>
-
-            {/* Bill Info Section */}
-            <div className="flex justify-between mb-1 border-b border-black pb-2">
-                <div>
-                    <h3 className="font-semibold mb-[2px] text-md">Customer Details:</h3>
-                    <p><span className="font-semibold">Customer Name:</span> {displayValue(billData.customer?.name, 'N/A')}</p>
-                    <p><span className="font-semibold">Customer Phone No:</span> {displayValue(billData.customer?.contact, 'N/A')}</p>
-                    <p><span className="font-semibold">Customer Location:</span> {displayValue(billData.customer?.location, 'N/A')}</p>
-                    <p><span className="font-semibold">Aadhaar:</span> {displayValue(billData.customer?.aadhaar, 'N/A')}</p>
-                </div>
-                <div className="text-right">
-                    <h3 className="font-semibold mb-[2px] text-md">Cashier Details:</h3>
-                    <p><span className="font-semibold">Receipt No:</span> {getBillNumber()}</p>
-                    <p><span className="font-semibold">Cashier Name:</span> {displayValue(billData.cashier?.cashierName, 'N/A')}</p>
-                    <p><span className="font-semibold">Counter No:</span> {displayValue(billData.cashier?.counterNum, 'N/A')}</p>
-                    <p><span className="font-semibold">Date:</span> {new Date(billData.date || new Date()).toLocaleDateString('en-IN')}</p>
-                </div>
-            </div>
-
-            {/* Only show product table if there are products */}
-            {totals.hasProducts && (
-                <div className="mb-2">
-                    <h3 className="font-semibold mb-2 text-lg">Bill Details:</h3>
-                    <table className="w-full border">
-                        <thead>
-                            <tr>
-                                <th className="text-center py-1 font-semibold border border-black bg-gray-100" style={{ fontSize: '10px' }}>SNO</th>
-                                <th className="text-center py-1 font-semibold border border-black bg-gray-100" style={{ fontSize: '10px' }}>Product Code</th>
-                                <th className="text-center py-1 font-semibold border border-black bg-gray-100" style={{ fontSize: '10px' }}>Product Name</th>
-                                <th className="text-center py-1 font-semibold border border-black bg-gray-100" style={{ fontSize: '10px' }}>MRP</th>
-                                <th className="text-center py-1 font-semibold border border-black bg-gray-100" style={{ fontSize: '10px' }}>Basic Price</th>
-                                <th className="text-center py-1 font-semibold border border-black bg-gray-100" style={{ fontSize: '10px' }}>GST %</th>
-                                <th className="text-center py-1 font-semibold border border-black bg-gray-100" style={{ fontSize: '10px' }}>SGST %</th>
-                                <th className="text-center py-1 font-semibold border border-black bg-gray-100" style={{ fontSize: '10px' }}>Qty/Unit</th>
-                                <th className="text-center py-1 font-semibold border border-black bg-gray-100" style={{ fontSize: '10px' }}>Total</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {(billData.products || []).map((product, index) => {
-                                const quantity = product.quantity || 1;
-                                const unit = product.unit || '';
-                                const basicPrice = Math.round((product.basicPrice || 0) * 100) / 100;
-                                const total = Math.round((basicPrice * quantity) + (product.gstAmount * quantity) + (product.sgstAmount * quantity));
-
-                                return (
-                                    <tr key={index} className={index % 2 === 0 ? 'bg-gray-50' : ''}>
-                                        <td className="text-center py-1 border-l border-r border-black" style={{ fontSize: '10px' }}>{index + 1}</td>
-                                        <td className="text-center py-1 border-r border-black" style={{ fontSize: '10px' }}>{displayValue(product.code)}</td>
-                                        <td className="text-center py-1 border-r border-black" style={{ fontSize: '10px' }}>{displayValue(product.name)}</td>
-                                        <td className="text-center py-1 border-r border-black" style={{ fontSize: '10px' }}>{formatCurrency(product.mrpPrice)}</td>
-                                        <td className="text-center py-1 border-r border-black" style={{ fontSize: '10px' }}>{formatCurrency(basicPrice)}</td>
-                                        <td className="text-center py-1 border-r border-black" style={{ fontSize: '10px' }}>{formatPercentage(product.gstAmount)}</td>
-                                        <td className="text-center py-1 border-r border-black" style={{ fontSize: '10px' }}>{formatPercentage(product.sgstAmount)}</td>
-                                        <td className="text-center py-1 border-r border-black" style={{ fontSize: '10px' }}>
-                                            {quantity}{unit}
-                                        </td>
-                                        <td className="text-center py-1 border-r border-black font-semibold" style={{ fontSize: '10px' }}>
-                                            {formatCurrency(total)}
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
-                    <div className="mt-2 flex justify-between">
-                        <p><span className="font-semibold">Delivery Charges:</span> {formatCurrency(billData.transportCharge)}</p>
-                        <p><span className="font-semibold">Item Count:</span> {(billData.products || []).length}</p>
-                    </div>
-                </div>
-            )}
-
-            {/* Totals Section */}
-            <div className="mb-2 text-right">
-                {totals.hasProducts && (
-                    <>
-                        <div className="flex justify-between mb-1">
-                            <span>Subtotal:</span>
-                            <span>{formatCurrency(totals.subtotal)}</span>
+        <div className="w-[210mm] h-[297mm] mx-auto font-sans bg-white" style={{
+            fontSize: '12px',
+            fontFamily: 'Arial, sans-serif',
+            position: 'relative'
+        }}>
+            {/* Each page will render the header and then the content */}
+            {productChunks.length === 0 ? (
+                // Single page when there are no products
+                <div className="p-5 h-full flex flex-col">
+                    {/* Header Section - Fixed on every page */}
+                    <div className="border border-black p-2 mb-2">
+                        <div className='flex justify-between'>
+                            <p className="font-semibold">GSTIN: {displayValue(companyDetails.gstin, 'N/A')}</p>
+                            {/* <p className="font-semibold">{billData.isOutstandingPaymentOnly ? 'Credit Settlement' : 'Original for Buyer'}</p> */}
+                            {companyDetails.logoUrl && (
+                                <div className="flex justify-center mb-1">
+                                    <img
+                                        src={companyDetails.logoUrl}
+                                        alt="Company Logo"
+                                        className="h-14 object-contain"
+                                    />
+                                </div>
+                            )}
                         </div>
-                        <div className="flex justify-between mb-1">
-                            <span>GST:</span>
-                            <span>{formatCurrency(totals.gstTotal)}</span>
+                        <div className="text-center mb-2">
+                            <h2 className="text-lg font-semibold">{displayValue(companyDetails.businessName)}</h2>
+                            <p className="text-xs">{displayValue(companyDetails.address)}</p>
+                            <p className="text-xs">
+                                Phone: {displayValue(companyDetails.phoneNumber, 'N/A')},
+                                Email: {displayValue(companyDetails.email, 'N/A')}
+                            </p>
                         </div>
-                        <div className="flex justify-between mb-1">
-                            <span>SGST:</span>
-                            <span>{formatCurrency(totals.sgstTotal)}</span>
+                        {/* Bill Info Section */}
+                        <div className="flex justify-between">
+                            <div className="border border-gray-400 p-1 w-1/2 mr-2">
+                                <h3 className="font-semibold text-center bg-gray-100 mb-1">Customer Details</h3>
+                                <p><span className="font-semibold">Name:</span> {displayValue(billData.customer?.name, 'N/A')}</p>
+                                <p><span className="font-semibold">Phone:</span> {displayValue(billData.customer?.contact, 'N/A')}</p>
+                                <p><span className="font-semibold">Location:</span> {displayValue(billData.customer?.location, 'N/A')}</p>
+                                <p><span className="font-semibold">Aadhaar:</span> {displayValue(billData.customer?.aadhaar, 'N/A')}</p>
+                            </div>
+                            <div className="border border-gray-400 p-1 w-1/2">
+                                <h3 className="font-semibold text-center bg-gray-100 mb-1">Cashier Details</h3>
+                                <p><span className="font-semibold">Receipt No:</span> {getBillNumber()}</p>
+                                <p><span className="font-semibold">Cashier:</span> {displayValue(billData.cashier?.cashierName, 'N/A')}</p>
+                                <p><span className="font-semibold">Counter:</span> {displayValue(billData.cashier?.counterNum, 'N/A')}</p>
+                                <p><span className="font-semibold">Date:</span> {new Date(billData.date || new Date()).toLocaleDateString('en-IN')}</p>
+                            </div>
                         </div>
-                        <div className="flex justify-between mb-1">
-                            <span>Delivery Charges:</span>
-                            <span>{formatCurrency(totals.transport)}</span>
+
+
+                        {/* Totals Section */}
+                        <div className="border border-black p-2 mb-2">
+                            <div className="flex justify-between mb-1">
+                                <span className="font-semibold">Previous Credit:</span>
+                                <span>{formatCurrency(totals.credit)}</span>
+                            </div>
+
+                            <div className="mt-1 mb-1 border-t border-black pt-1">
+                                <span className="font-bold text-md">{billData.isOutstandingPaymentOnly ? 'Total Credit:' : 'Grand Total:'}</span>
+                                <span className="font-bold float-right">{formatCurrency(totals.grandTotal)}</span>
+                            </div>
+
+                            {/* Payment Details Section */}
+                            {billData.payment && (
+                                <div className="border-t border-black pt-1">
+                                    {!billData.isOutstandingPaymentOnly && (
+                                        <div className="flex justify-between">
+                                            <span className="font-semibold">Current Bill Payment:</span>
+                                            <span>{formatCurrency(totals.currentPayment)}</span>
+                                        </div>
+                                    )}
+                                    <div className="flex justify-between">
+                                        <span className="font-semibold">Credit Payment:</span>
+                                        <span>{formatCurrency(totals.outstandingPayment)}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="font-semibold">Total Paid:</span>
+                                        <span className="font-bold text-black-600">{formatCurrency(totals.totalPaid)}</span>
+                                    </div>
+                                    {totals.balanceDue > 0 && (
+                                        <div className="flex justify-between">
+                                            <span className="font-semibold">Balance Due:</span>
+                                            <span className="font-semibold text-red-600">{formatCurrency(totals.balanceDue)}</span>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
-                    </>
-                )}
 
-                <div className="flex justify-between mb-1">
-                    <span>Previous Credit:</span>
-                    <span>{formatCurrency(totals.credit)}</span>
-                </div>
-
-                <div className="mt-1 mb-1">
-                    <span className="font-bold text-md text-right">{billData.isOutstandingPaymentOnly ? 'Total Credit:' : 'Grand Total:'}</span>
-                    <span className="font-bold text-lg">{formatCurrency(totals.grandTotal)}</span>
-                </div>
-
-                {/* Payment Details Section */}
-                {billData.payment && (
-                    <>
-                        {!billData.isOutstandingPaymentOnly && (
-                            <div className="flex justify-between border-t border-black pt-2">
-                                <span className="font-semibold">Current Bill Payment:</span>
-                                <span>{formatCurrency(totals.currentPayment)}</span>
+                        {/* Payment Method Section */}
+                        {billData.payment && (
+                            <div className='flex justify-between mt-2'>
+                                <div className="">
+                                    <p><span className="font-semibold">Payment Method:</span> {billData.payment.method.toUpperCase()}</p>
+                                    {billData.payment.transactionId && (
+                                        <p><span className="font-semibold">Transaction ID:</span> {billData.payment.transactionId}</p>
+                                    )}
+                                </div>
+                                <div className="">
+                                    <p className="text-[12px]">Amount In Words: {numberToWords(totals.grandTotal)}</p>
+                                </div>
                             </div>
                         )}
-                        <div className="flex justify-between">
-                            <span className="font-semibold">Credit Payment:</span>
-                            <span>{formatCurrency(totals.outstandingPayment)}</span>
-                        </div>
-                        <div className="flex justify-between">
-                            <span className="font-semibold">Total Paid:</span>
-                            <span className="font-semibold text-green-600">{formatCurrency(totals.totalPaid)}</span>
-                        </div>
-                        {totals.balanceDue > 0 && (
+
+                        {/* Footer Section */}
+                        <div className="border border-black p-2 mt-auto">
                             <div className="flex justify-between">
-                                <span className="font-semibold">Balance Due:</span>
-                                <span className="font-semibold text-red-600">{formatCurrency(totals.balanceDue)}</span>
+                                <div className="w-1/2 pr-2">
+                                    <h3 className="font-semibold mb-1">Company's Bank Details:</h3>
+                                    <p className="text-xs">Bank Name: {displayValue(companyDetails.bankName, '')}</p>
+                                    <p className="text-xs">Account No: {displayValue(companyDetails.accountNumber, '')}</p>
+                                    <p className="text-xs">IFSC: {displayValue(companyDetails.ifscCode, '')}</p>
+                                </div>
+                                <div className="w-1/2 text-center pt-5">
+                                    <p className="font-semibold ml-20">Authorized Signatory</p>
+                                </div>
                             </div>
-                        )}
-                    </>
-                )}
-
-                <div className="mt-2 border-t border-black pt-2">
-                    <p className="font-semibold">Amount In Words: {numberToWords(totals.grandTotal)}</p>
-                </div>
-            </div>
-
-            {/* Payment Method Section */}
-            {billData.payment && (
-                <div className="mb-1">
-                    <p><span className="font-semibold">Payment Method:</span> {billData.payment.method.toUpperCase()}</p>
-                    {billData.payment.transactionId && (
-                        <p><span className="font-semibold">Transaction ID:</span> {billData.payment.transactionId}</p>
-                    )}
-                </div>
-            )}
-
-            {/* Terms & Conditions Section */}
-            <div className='flex justify-between border-t border-black'>
-                {/* <div className="mb-2 pt-2">
-                    <h3 className="font-semibold mb-1 text-lg">Terms & Conditions:</h3>
-                    <ol className="list-decimal pl-5 space-y-1">
-                        <li>Goods once sold cannot be taken back or exchanged.</li>
-                        <li>Warranty and guarantee will be as per manufacturer's policy.</li>
-                        <li>All disputes are subject to Tingpur jurisdiction only.</li>
-                    </ol>
-                </div> */}
-                <div className="mt-8 text-center">
-                    <p className="font-semibold text-right">Authorized Signatory</p>
-                    <div className="mt-2 inline-block border-t border-black pt-1">
-                        <p>Stamp & Signature</p>
+                        </div>
                     </div>
                 </div>
-            </div>
+            ) : (
+                // Multiple pages when there are products
+                productChunks.map((products, pageIndex) => (
+                    <div key={pageIndex} className={`p-5 h-full flex flex-col ${pageIndex > 0 ? 'mt-4' : ''}`} style={{ pageBreakAfter: pageIndex < productChunks.length - 1 ? 'always' : 'auto' }}>
+                        {/* Header Section - Fixed on every page */}
+                        <div className="border border-black p-2 mb-2">
+                            <div className='flex justify-between'>
+                                <p className="font-semibold">GSTIN: {displayValue(companyDetails.gstin, 'N/A')}</p>
+                                {/* <p className="font-semibold">{billData.isOutstandingPaymentOnly ? 'Credit Settlement' : pageIndex === 0 ? 'Original for Buyer' : 'Continuation...'}</p> */}
+                                {companyDetails.logoUrl && (
+                                    <div className="flex justify-center mb-1">
+                                        <img
+                                            src={companyDetails.logoUrl}
+                                            alt="Company Logo"
+                                            className="h-14 object-contain"
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                            <div className="text-center mb-2">
+                                <h2 className="text-lg font-semibold">{displayValue(companyDetails.businessName)}</h2>
+                                <p className="text-xs">{displayValue(companyDetails.address)}</p>
+                                <p className="text-xs">
+                                    Phone: {displayValue(companyDetails.phoneNumber, 'N/A')},
+                                    Email: {displayValue(companyDetails.email, 'N/A')}
+                                </p>
+                            </div>
+                            {/* Bill Info Section */}
+                            <div className="flex justify-between">
+                                <div className="border border-black p-1 w-1/2 mr-2">
+                                    <h3 className="font-semibold text-center bg-gray-100 mb-1">Customer Details</h3>
+                                    <p><span className="font-semibold">Name:</span> {displayValue(billData.customer?.name, 'N/A')}</p>
+                                    <p><span className="font-semibold">Phone:</span> {displayValue(billData.customer?.contact, 'N/A')}</p>
+                                    <p><span className="font-semibold">Location:</span> {displayValue(billData.customer?.location, 'N/A')}</p>
+                                    <p><span className="font-semibold">Aadhaar:</span> {displayValue(billData.customer?.aadhaar, 'N/A')}</p>
+                                </div>
+                                <div className="border border-black p-1 w-1/2">
+                                    <h3 className="font-semibold text-center bg-gray-100 mb-1">Cashier Details</h3>
+                                    <p><span className="font-semibold">Receipt No:</span> {getBillNumber()}</p>
+                                    <p><span className="font-semibold">Cashier:</span> {displayValue(billData.cashier?.cashierName, 'N/A')}</p>
+                                    <p><span className="font-semibold">Counter:</span> {displayValue(billData.cashier?.counterNum, 'N/A')}</p>
+                                    <p><span className="font-semibold">Date:</span> {new Date(billData.date || new Date()).toLocaleDateString('en-IN')}</p>
+                                </div>
+                            </div>
 
-            {/* Footer Section */}
-            <div className="text-center border-t border-black pt-4">
-                <p className="mb-4">Thank You for Your Business!</p>
-            </div>
+                            {/* Products Table Section */}
+                            <h3 className="font-semibold text-left bg-gray-100 mb-1">Bill Details</h3>
+                            <div className="p-1 mb-2 flex-grow">
+                                <table className="w-full">
+                                    <thead>
+                                        <tr className="border border-black">
+                                            <th className="text-center py-1 font-semibold border-r border-black bg-gray-100" style={{ fontSize: '12px' }}>SNO</th>
+                                            <th className="text-center py-1 font-semibold border-r border-black bg-gray-100" style={{ fontSize: '12px' }}>Product Code</th>
+                                            <th className="text-center py-1 font-semibold border-r border-black bg-gray-100" style={{ fontSize: '12px' }}>Product Name</th>
+                                            <th className="text-center py-1 font-semibold border-r border-black bg-gray-100" style={{ fontSize: '12px' }}>MRP</th>
+                                            <th className="text-center py-1 font-semibold border-r border-black bg-gray-100" style={{ fontSize: '12px' }}>Basic Price</th>
+                                            <th className="text-center py-1 font-semibold border-r border-black bg-gray-100" style={{ fontSize: '12px' }}>GST %</th>
+                                            <th className="text-center py-1 font-semibold border-r border-black bg-gray-100" style={{ fontSize: '12px' }}>SGST %</th>
+                                            <th className="text-center py-1 font-semibold border-r border-black bg-gray-100" style={{ fontSize: '12px' }}>Qty/Unit</th>
+                                            <th className="text-center py-1 font-semibold bg-gray-100" style={{ fontSize: '12px' }}>Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {products.map((product, index) => {
+                                            const quantity = product.quantity || 1;
+                                            const unit = product.unit || '';
+                                            const basicPrice = Math.round((product.basicPrice || 0) * 100) / 100;
+                                            const total = Math.round((basicPrice * quantity) + (product.gstAmount * quantity) + (product.sgstAmount * quantity));
+
+                                            // Check if this is the last product row
+                                            const isLastRow = index === products.length - 1 &&
+                                                (products.length >= productsPerPage ||
+                                                    productChunks.length === 1 ||
+                                                    pageIndex === productChunks.length - 1);
+
+                                            return (
+                                                <tr key={index} className={`${index % 2 === 0 ? 'bg-gray-50' : ''}`}>
+                                                    <td className="text-center py-1 border-r border-l border-black" style={{ fontSize: '12px' }}>
+                                                        {pageIndex * productsPerPage + index + 1}
+                                                    </td>
+                                                    <td className="text-center py-1 border-r border-l border-black" style={{ fontSize: '12px' }}>
+                                                        {displayValue(product.code)}
+                                                    </td>
+                                                    <td className="text-center py-1 border-r border-l border-black font-semibold" style={{ fontSize: '12px' }}>
+                                                        {displayValue(product.name)}
+                                                    </td>
+                                                    <td className="text-center py-1 border-r border-l border-black" style={{ fontSize: '12px' }}>
+                                                        {formatCurrency(product.mrpPrice)}
+                                                    </td>
+                                                    <td className="text-center py-1 border-r border-l border-black" style={{ fontSize: '12px' }}>
+                                                        {formatCurrency(basicPrice)}
+                                                    </td>
+                                                    <td className="text-center py-1 border-r border-l border-black" style={{ fontSize: '12px' }}>
+                                                        {formatPercentage(product.gstAmount)}
+                                                    </td>
+                                                    <td className="text-center py-1 border-r border-l border-black" style={{ fontSize: '12px' }}>
+                                                        {formatPercentage(product.sgstAmount)}
+                                                    </td>
+                                                    <td className="text-center py-1 border-r border-l border-black font-semibold" style={{ fontSize: '12px' }}>
+                                                        {quantity}{unit}
+                                                    </td>
+                                                    <td className="text-center py-1 border-r border-l border-black font-semibold" style={{ fontSize: '12px' }}>
+                                                        {formatCurrency(total)}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+
+                                        {/* Fill remaining rows if less than productsPerPage */}
+                                        {products.length < productsPerPage && Array.from({ length: productsPerPage - products.length }).map((_, index) => {
+                                            const isLastRow = (products.length + index) === productsPerPage - 1 ||
+                                                (pageIndex === productChunks.length - 1 &&
+                                                    (products.length + index) === (allProducts.length % productsPerPage || productsPerPage) - 1);
+
+                                            return (
+                                                <tr key={`empty-${index}`} className={`${products.length % 2 === 0 ? 'bg-gray-50' : ''} ${isLastRow ? 'border-b border-black' : ''}`}>
+                                                    <td className="py-1 border-r border-l border-black" style={{ fontSize: '12px' }}>&nbsp;</td>
+                                                    <td className="py-1 border-r border-l border-black" style={{ fontSize: '12px' }}>&nbsp;</td>
+                                                    <td className="py-1 border-r border-l border-black" style={{ fontSize: '12px' }}>&nbsp;</td>
+                                                    <td className="py-1 border-r border-l border-black" style={{ fontSize: '12px' }}>&nbsp;</td>
+                                                    <td className="py-1 border-r border-l border-black" style={{ fontSize: '12px' }}>&nbsp;</td>
+                                                    <td className="py-1 border-r border-l border-black" style={{ fontSize: '12px' }}>&nbsp;</td>
+                                                    <td className="py-1 border-r border-l border-black" style={{ fontSize: '12px' }}>&nbsp;</td>
+                                                    <td className="py-1 border-r border-l border-black" style={{ fontSize: '12px' }}>&nbsp;</td>
+                                                    <td className="py-1 border-r border-l border-black" style={{ fontSize: '12px' }}>&nbsp;</td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                                {/* <div className="flex justify-between mt-1 text-xs">
+                                <p><span className="font-semibold">Delivery Charges:</span> {formatCurrency(billData.transportCharge)}</p>
+                                <p><span className="font-semibold">Page {pageIndex + 1} of {productChunks.length}</span></p>
+                            </div> */}
+                            </div>
+
+                            {/* Show totals only on last page */}
+                            {pageIndex === productChunks.length - 1 && (
+                                <>
+                                    {/* Totals Section */}
+                                    <div className="border border-black p-2 mb-2">
+                                        <div className="flex justify-between mb-1">
+                                            <span className="font-semibold">Subtotal:</span>
+                                            <span>{formatCurrency(totals.subtotal)}</span>
+                                        </div>
+                                        <div className="flex justify-between mb-1">
+                                            <span className="font-semibold">CGST:</span>
+                                            <span>{formatCurrency(totals.gstTotal)}</span>
+                                        </div>
+                                        <div className="flex justify-between mb-1">
+                                            <span className="font-semibold">SGST:</span>
+                                            <span>{formatCurrency(totals.sgstTotal)}</span>
+                                        </div>
+                                        <div className="flex justify-between mb-1">
+                                            <span className="font-semibold">Delivery Charges:</span>
+                                            <span>{formatCurrency(totals.transport)}</span>
+                                        </div>
+                                        <div className="flex justify-between mb-1 ">
+                                            <span className="font-semibold">Previous Credit:</span>
+                                            <span>{formatCurrency(totals.credit)}</span>
+                                        </div>
+
+                                        <div className="mt-1 mb-1 border-t border-black pt-1">
+                                            <span className="font-bold text-md">{billData.isOutstandingPaymentOnly ? 'Total Credit:' : 'Grand Total:'}</span>
+                                            <span className="font-bold float-right">{formatCurrency(totals.grandTotal)}</span>
+                                        </div>
+
+                                        {/* Payment Details Section */}
+                                        {billData.payment && (
+                                            <div className="border-t border-black pt-1">
+                                                {!billData.isOutstandingPaymentOnly && (
+                                                    <div className="flex justify-between">
+                                                        <span className="font-semibold">Current Bill Payment:</span>
+                                                        <span>{formatCurrency(totals.currentPayment)}</span>
+                                                    </div>
+                                                )}
+                                                <div className="flex justify-between">
+                                                    <span className="font-semibold">Credit Payment:</span>
+                                                    <span>{formatCurrency(totals.outstandingPayment)}</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span className="font-semibold">Total Paid:</span>
+                                                    <span className="font-bold text-black-600">{formatCurrency(totals.totalPaid)}</span>
+                                                </div>
+                                                {totals.balanceDue > 0 && (
+                                                    <div className="flex justify-between">
+                                                        <span className="font-semibold">Balance Due:</span>
+                                                        <span className="font-semibold text-red-600">{formatCurrency(totals.balanceDue)}</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                        <div className='flex justify-between mt-2'>
+
+                                            <div className="">
+                                                <p className="text-[12px]">Amount In Words: {numberToWords(totals.grandTotal)}</p>
+                                            </div>
+                                            {billData.payment && (
+                                                <div className="">
+                                                    <p><span className="font-semibold">Payment Method:</span> {billData.payment.method.toUpperCase()}</p>
+                                                    {billData.payment.transactionId && (
+                                                        <p><span className="font-semibold">Transaction ID:</span> {billData.payment.transactionId}</p>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+
+
+                                        {/* Footer Section */}
+                                        <div className="flex justify-between mt-1 mb-1 border-t border-black pt-1">
+                                            <div className="w-1/2 pr-2 ">
+                                                <h3 className="font-semibold mb-1">Bank Details:</h3>
+                                                <p className="text-xs">Bank Name: {displayValue(companyDetails.bankName, 'N/A')}</p>
+                                                <p className="text-xs">Account No: {displayValue(companyDetails.accountNumber, 'N/A')}</p>
+                                                <p className="text-xs">IFSC: {displayValue(companyDetails.ifscCode, 'N/A')}</p>
+                                            </div>
+                                            <div className="w-1/2 text-center">
+                                                <p className="font-semibold pt-5 ml-20">Authorized Signatory</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    </div>
+
+                ))
+            )}
         </div>
     );
 };

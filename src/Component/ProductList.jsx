@@ -6,8 +6,7 @@ import Api from '../services/api';
 import Swal from 'sweetalert2';
 import CalculatorPopup from './CalculatorPopup';
 
-
-function ProductList({ products, onAdd, onEdit, onRemove, transportCharge,
+function ProductList({ products, onAdd, onEdit, onRemove, transportCharge, paymentMethod, onPaymentMethodChange,
   onTransportChargeChange = (value) => { }, }) {
   const initialProduct = {
     code: '',
@@ -343,114 +342,116 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge,
     }));
   };
 
-const checkStockAvailability = async (productName, quantity, unit) => {
-  try {
-    // First get the product details including unit conversion rates
-    const productRes = await Api.get(`/products/name/${productName}`);
-    const product = productRes.data;
+  const checkStockAvailability = async (productName, quantity, unit) => {
+    try {
+      // First get the product details including unit conversion rates
+      const productRes = await Api.get(`/products/name/${productName}`);
+      const product = productRes.data;
 
-    if (!product) {
+      if (!product) {
+        return { isAvailable: false, available: 0, availableDisplay: 0 };
+      }
+
+      // Get the stock information
+      const stockRes = await Api.get(`products/stock/${product.productCode}`);
+      const stockData = stockRes.data;
+      const availableQuantity = stockData.stock?.availableQuantity || 0;
+
+      // Calculate available quantity in the requested unit
+      let availableInRequestedUnit = availableQuantity;
+      let isAvailable = true;
+      let conversionRate = 1;
+
+      if (unit === product.baseUnit) {
+        // For base unit, compare directly
+        isAvailable = availableQuantity >= quantity;
+        availableInRequestedUnit = availableQuantity;
+      } else if (unit === product.secondaryUnit) {
+        // For secondary unit, convert to base unit for comparison
+        conversionRate = product.conversionRate || 1;
+        const requestedQuantityInBase = quantity;
+        isAvailable = availableQuantity >= requestedQuantityInBase;
+        availableInRequestedUnit = availableQuantity * conversionRate;
+      }
+
+      return {
+        isAvailable,
+        available: availableQuantity,
+        availableDisplay: availableInRequestedUnit,
+        unit,
+        conversionRate
+      };
+    } catch (err) {
+      console.error('Error checking stock:', err);
       return { isAvailable: false, available: 0, availableDisplay: 0 };
     }
-
-    // Get the stock information
-    const stockRes = await Api.get(`products/stock/${product.productCode}`);
-    const stockData = stockRes.data;
-    const availableQuantity = stockData.stock?.availableQuantity || 0;
-
-    // Calculate available quantity in the requested unit
-    let availableInRequestedUnit = availableQuantity;
-    let isAvailable = true;
-    let conversionRate = 1;
-
-    if (unit === product.baseUnit) {
-      // For base unit, compare directly
-      isAvailable = availableQuantity >= quantity;
-      availableInRequestedUnit = availableQuantity;
-    } else if (unit === product.secondaryUnit) {
-      // For secondary unit, convert to base unit for comparison
-      conversionRate = product.conversionRate || 1;
-      const requestedQuantityInBase = quantity;
-      isAvailable = availableQuantity >= requestedQuantityInBase;
-      availableInRequestedUnit = availableQuantity * conversionRate;
-    }
-
-    return {
-      isAvailable,
-      available: availableQuantity,
-      availableDisplay: availableInRequestedUnit,
-      unit,
-      conversionRate
-    };
-  } catch (err) {
-    console.error('Error checking stock:', err);
-    return { isAvailable: false, available: 0, availableDisplay: 0 };
-  }
-};
-
-// Then modify the handleSubmit function to use this properly:
-const handleSubmit = async (e) => {
-  e.preventDefault();
-
-  if (!product.code || !product.quantity) {
-    toast.error("Product code and quantity are required!");
-    return;
-  }
-
-  const quantityValue = parseFloat(product.quantity);
-  if (isNaN(quantityValue) || quantityValue <= 0) {
-    toast.error("Please enter a valid quantity!");
-    return;
-  }
-
-  // Check stock availability
-  const stockCheck = await checkStockAvailability(
-    product.name,
-    quantityValue,
-    product.selectedUnit || product.baseUnit
-  );
-
-  if (!stockCheck.isAvailable) {
-    const availableInRequestedUnit = stockCheck.availableDisplay.toFixed(2);
-    const requestedUnit = product.selectedUnit || product.baseUnit;
-
-    await Swal.fire({
-      title: 'Insufficient Stock',
-      html: `Only <b>${availableInRequestedUnit} ${requestedUnit}</b> available for <b>${product.name}</b>`,
-      icon: 'warning',
-      confirmButtonText: 'OK',
-      confirmButtonColor: '#3085d6',
-    });
-    return;
-  }
-
-  // Rest of your submit logic...
-  const newProduct = {
-    ...product,
-    id: Date.now(),
-    quantity: quantityValue,
-    price: parseFloat(product.price),
-    basicPrice: product.basicPrice,
-    gstAmount: product.gstAmount,
-    sgstAmount: product.sgstAmount,
-    totalPrice: product.totalPrice,
-    unit: product.selectedUnit || product.baseUnit,
-    isManualPrice: product.isManualPrice,
-    availableStock: stockCheck.available,
-    hsnCode: product.hsnCode
   };
 
-  if (editingIndex !== null) {
-    onEdit(editingIndex, newProduct);
-    setEditingIndex(null);
-  } else {
-    onAdd(newProduct);
-  }
+  const handleSubmit = async (e) => {
+    e.preventDefault();
 
-  setProduct(initialProduct);
-  setNameSuggestions([]);
-  searchProductInputRef.current?.focus();
-};
+    if (!product.code || !product.quantity) {
+      toast.error("Product code and quantity are required!");
+      return;
+    }
+
+    const quantityValue = parseFloat(product.quantity);
+    if (isNaN(quantityValue) || quantityValue <= 0) {
+      toast.error("Please enter a valid quantity!");
+      return;
+    }
+
+    // Check stock availability
+    const stockCheck = await checkStockAvailability(
+      product.name,
+      quantityValue,
+      product.selectedUnit || product.baseUnit
+    );
+
+    if (!stockCheck.isAvailable) {
+      const availableInRequestedUnit = stockCheck.availableDisplay.toFixed(2);
+      const requestedUnit = product.selectedUnit || product.baseUnit;
+
+      await Swal.fire({
+        title: 'Insufficient Stock',
+        html: `Only <b>${availableInRequestedUnit} ${requestedUnit}</b> available for <b>${product.name}</b>`,
+        icon: 'warning',
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#3085d6',
+      });
+      return;
+    }
+
+    const newProduct = {
+      ...product,
+      id: Date.now(),
+      quantity: quantityValue,
+      price: parseFloat(product.price),
+      basicPrice: product.basicPrice,
+      gstAmount: product.gstAmount,
+      sgstAmount: product.sgstAmount,
+      totalPrice: product.totalPrice,
+      unit: product.selectedUnit || product.baseUnit,
+      isManualPrice: product.isManualPrice,
+      availableStock: stockCheck.available,
+      hsnCode: product.hsnCode
+    };
+
+    if (editingIndex !== null) {
+      onEdit(editingIndex, newProduct);
+      setEditingIndex(null);
+    } else {
+      onAdd(newProduct);
+    }
+
+    setProduct(initialProduct);
+    setNameSuggestions([]);
+    
+    // Focus on product code input after submission
+    setTimeout(() => {
+      productCodeInputRef.current?.focus();
+    }, 0);
+  };
 
   const handleEdit = (index) => {
     const productToEdit = products[index];
@@ -768,7 +769,7 @@ const handleSubmit = async (e) => {
             </tbody>
           </table>
         </div>
-        {/* Transport Charge Input */}       
+        {/* Transport Charge Input */}
         <div className="bg-gray-50 py-2 px-4 border-t">
           <div className='flex justify-between items-center w-full'>
             {/* Calculator Button (Left) */}
@@ -776,9 +777,25 @@ const handleSubmit = async (e) => {
               <button
                 onClick={() => setShowCalculator(true)}
                 className="px-3 py-1.5 text-sm font-normal text-white bg-gray-500 rounded-md hover:bg-gray-700 transition-colors flex items-center gap-1"
-              >                
+              >
                 Calculator
               </button>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-gray-700 whitespace-nowrap">Payment Method:</label>
+              <select
+                value={paymentMethod}
+                onChange={(e) => {
+                  onPaymentMethodChange(e.target.value); // Notify parent
+                }}
+                className="w-32 px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="cash">Cash</option>
+                <option value="card">Card</option>
+                <option value="upi">UPI</option>
+                <option value="bank-transfer">Bank Transfer</option>
+              </select>
             </div>
 
             {/* Transport Charge (Right) */}
@@ -809,37 +826,37 @@ const handleSubmit = async (e) => {
           </div>
 
           {/* Footer with total */}
-          
-            <div className="bg-gray-50  py-2 mt-2 border-t sticky bottom-0">
-              <div className="flex flex-col sm:flex-row justify-between items-center ">
-                <span className="text-sm text-gray-600">
-                  {filteredProducts.length} {filteredProducts.length === 1 ? 'item' : 'items'}
+
+          <div className="bg-gray-50  py-2 mt-2 border-t sticky bottom-0">
+            <div className="flex flex-col sm:flex-row justify-between items-center ">
+              <span className="text-sm text-gray-600">
+                {filteredProducts.length} {filteredProducts.length === 1 ? 'item' : 'items'}
+              </span>
+              <div className="flex items-center gap-6">
+                <span className="text-sm font-medium text-gray-700">
+                  Subtotal: ₹{filteredProducts.reduce((sum, item) => sum + (item.basicPrice * item.quantity), 0).toFixed(2)}
                 </span>
-                <div className="flex items-center gap-6">
+                <span className="text-sm font-medium text-gray-700">
+                  GST: ₹{filteredProducts.reduce((sum, item) => sum + (item.gstAmount * item.quantity), 0).toFixed(2)}
+                </span>
+                <span className="text-sm font-medium text-gray-700">
+                  SGST: ₹{filteredProducts.reduce((sum, item) => sum + (item.sgstAmount * item.quantity), 0).toFixed(2)}
+                </span>
+                {transportCharge > 0 && (
                   <span className="text-sm font-medium text-gray-700">
-                    Subtotal: ₹{filteredProducts.reduce((sum, item) => sum + (item.basicPrice * item.quantity), 0).toFixed(2)}
+                    Transport: ₹{transportCharge.toFixed(2)}
                   </span>
-                  <span className="text-sm font-medium text-gray-700">
-                    GST: ₹{filteredProducts.reduce((sum, item) => sum + (item.gstAmount * item.quantity), 0).toFixed(2)}
-                  </span>
-                  <span className="text-sm font-medium text-gray-700">
-                    SGST: ₹{filteredProducts.reduce((sum, item) => sum + (item.sgstAmount * item.quantity), 0).toFixed(2)}
-                  </span>
-                  {transportCharge > 0 && (
-                    <span className="text-sm font-medium text-gray-700">
-                      Transport: ₹{transportCharge.toFixed(2)}
-                    </span>
-                  )}
-                  <span className="text-lg font-bold text-blue-600">
-                    Grand Total: ₹{calculateGrandTotal().toFixed(2)}
-                  </span>
-                </div>
+                )}
+                <span className="text-lg font-bold text-blue-600">
+                  Grand Total: ₹{calculateGrandTotal().toFixed(2)}
+                </span>
               </div>
-            </div>         
+            </div>
+          </div>
         </div>
       </div>
     </div>
   );
 }
-export default ProductList;
 
+export default ProductList;
