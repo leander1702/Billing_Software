@@ -238,16 +238,14 @@ const PrintableBill = ({ billData = {}, companyDetails = {} }) => {
 
                         {/* Footer Section */}
                         <div className="border border-black p-2 mt-auto">
-                            <div className="flex justify-between">
-                                <div className="w-1/2 pr-2">
-                                    <h3 className="font-semibold mb-1">Company's Bank Details:</h3>
-                                    <p className="text-xs">Bank Name: {displayValue(companyDetails.bankName, '')}</p>
-                                    <p className="text-xs">Account No: {displayValue(companyDetails.accountNumber, '')}</p>
-                                    <p className="text-xs">IFSC: {displayValue(companyDetails.ifscCode, '')}</p>
-                                </div>
-                                <div className="w-1/2 text-center pt-5">
-                                    <p className="font-semibold ml-20">Authorized Signatory</p>
-                                </div>
+                            <div className="mb-2">
+                                <h3 className="font-semibold mb-1">Company's Bank Details:</h3>
+                                <p className="text-xs">Bank Name: {displayValue(companyDetails.bankName, '')}</p>
+                                <p className="text-xs">Account No: {displayValue(companyDetails.accountNumber, '')}</p>
+                                <p className="text-xs">IFSC: {displayValue(companyDetails.ifscCode, '')}</p>
+                            </div>
+                            <div className="text-center pt-2">
+                                <p className="font-semibold">Authorized Signatory</p>
                             </div>
                         </div>
                     </div>
@@ -461,15 +459,15 @@ const PrintableBill = ({ billData = {}, companyDetails = {} }) => {
 
 
                                         {/* Footer Section */}
-                                        <div className="flex justify-between mt-1 mb-1 border-t border-black pt-1">
-                                            <div className="w-1/2 pr-2 ">
-                                                <h3 className="font-semibold mb-1">Bank Details:</h3>
-                                                <p className="text-xs">Bank Name: {displayValue(companyDetails.bankName, 'N/A')}</p>
-                                                <p className="text-xs">Account No: {displayValue(companyDetails.accountNumber, 'N/A')}</p>
-                                                <p className="text-xs">IFSC: {displayValue(companyDetails.ifscCode, 'N/A')}</p>
+                                        <div className="border border-black p-2 mt-auto flex justify-between">
+                                            <div className="mb-2">
+                                                <h3 className="font-semibold mb-1">Company's Bank Details:</h3>
+                                                <p className="text-xs">Bank Name: {displayValue(companyDetails.bankName, '')}</p>
+                                                <p className="text-xs">Account No: {displayValue(companyDetails.accountNumber, '')}</p>
+                                                <p className="text-xs">IFSC: {displayValue(companyDetails.ifscCode, '')}</p>
                                             </div>
-                                            <div className="w-1/2 text-center">
-                                                <p className="font-semibold pt-5 ml-20">Authorized Signatory</p>
+                                            <div className="text-center pt-20">
+                                                <p className="font-semibold">Authorized Signatory</p>
                                             </div>
                                         </div>
                                     </div>
