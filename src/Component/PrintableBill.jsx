@@ -477,22 +477,22 @@ const PrintableBill = ({ billData =
                 // Single page when there are no products
                 <div className="p-5 h-full flex flex-col">
                     {/* Header Section - Fixed on every page */}
-                    <div className="border border-black p-2 mb-2">
+                    <div className="border border-black mb-1">
                         <div className='flex justify-between'>
                             <p className="font-semibold">GSTIN: {displayValue(companyDetails.gstin, 'N/A')}</p>
                             {/* <p className="font-semibold">{billData.isOutstandingPaymentOnly ? 'Credit Settlement' : 'Original for Buyer'}</p> */}
                         </div>
-                        <div className="text-center mb-2">
+                        <div className="text-center mb-1">
                               {companyDetails.logoUrl && (
-                                <div className="flex justify-center mb-1">
+                                <div className="mb-1">
                                     <img
                                         src={companyDetails.logoUrl}
                                         alt="Company Logo"
-                                        className="h-14 object-contain"
+                                        className="h-10 object-contain"
                                     />
                                 </div>
                             )}
-                            <h2 className="text-lg font-semibold">{displayValue(companyDetails.businessName)}</h2>
+                            <h2 className="text-lg font-bold">{displayValue(companyDetails.businessName)}</h2>
                             <p className="text-xs">{displayValue(companyDetails.address)}</p>
                             <p className="text-xs">
                                 Phone: {displayValue(companyDetails.phoneNumber, 'N/A')},
@@ -519,7 +519,7 @@ const PrintableBill = ({ billData =
 
 
                         {/* Totals Section */}
-                        <div className="border border-black p-2 mb-2">
+                        <div className="border border-black p-1 mb-1">
                             <div className="flex justify-between mb-1">
                                 <span className="font-semibold">Previous Credit:</span>
                                 <span>{formatCurrency(totals.credit)}</span>
@@ -550,7 +550,7 @@ const PrintableBill = ({ billData =
                                     {totals.balanceDue > 0 && (
                                         <div className="flex justify-between">
                                             <span className="font-semibold">Balance Due:</span>
-                                            <span className="font-semibold text-red-600">{formatCurrency(totals.balanceDue)}</span>
+                                            <span className="font-bold text-red-600">{formatCurrency(totals.balanceDue)}</span>
                                         </div>
                                     )}
                                 </div>
@@ -559,7 +559,7 @@ const PrintableBill = ({ billData =
 
                         {/* Payment Method Section */}
                         {billData.payment && (
-                            <div className='flex justify-between mt-2'>
+                            <div className='flex justify-between mt-1'>
                                 <div className="">
                                     <p><span className="font-semibold">Payment Method:</span> {billData.payment.method.toUpperCase()}</p>
                                     {billData.payment.transactionId && (
@@ -567,20 +567,20 @@ const PrintableBill = ({ billData =
                                     )}
                                 </div>
                                 <div className="">
-                                    <p className="text-[12px]">Amount In Words: {numberToWords(totals.grandTotal)}</p>
+                                    <p className="text-[10px]">Amount In Words: {numberToWords(totals.grandTotal)}</p>
                                 </div>
                             </div>
                         )}
 
                         {/* Footer Section */}
-                        <div className="border border-black p-2 mt-auto">
-                            <div className="mb-2">
+                        <div className="border border-black p-1 mt-auto">
+                            <div className="mb-1">
                                 <h3 className="font-semibold mb-1">Company's Bank Details:</h3>
                                 <p className="text-xs">Bank Name: {displayValue(companyDetails.bankName, '')}</p>
                                 <p className="text-xs">Account No: {displayValue(companyDetails.accountNumber, '')}</p>
                                 <p className="text-xs">IFSC: {displayValue(companyDetails.ifscCode, '')}</p>
                             </div>
-                            <div className="text-center pt-2">
+                            <div className="text-center">
                                 <p className="font-semibold">Authorized Signatory</p>
                             </div>
                         </div>
@@ -591,21 +591,21 @@ const PrintableBill = ({ billData =
                 productChunks.map((products, pageIndex) => (
                     <div key={pageIndex} className={`p-5 h-full flex flex-col ${pageIndex > 0 ? 'mt-4' : ''}`} style={{ pageBreakAfter: pageIndex < productChunks.length - 1 ? 'always' : 'auto' }}>
                         {/* Header Section - Fixed on every page */}
-                        <div className="border border-black p-2 mb-2">
+                        <div className="border border-black mb-1">
                             <div className='flex justify-between'>
                                 <p className="font-semibold">GSTIN: {displayValue(companyDetails.gstin, 'N/A')}</p>
                                 {/* <p className="font-semibold">{billData.isOutstandingPaymentOnly ? 'Credit Settlement' : pageIndex === 0 ? 'Original for Buyer' : 'Continuation...'}</p> */}
-                                {companyDetails.logoUrl && (
+                            </div>
+                            <div className="text-center mb-1">
+                                 {companyDetails.logoUrl && (
                                     <div className="flex justify-center mb-1">
                                         <img
                                             src={companyDetails.logoUrl}
                                             alt="Company Logo"
-                                            className="h-14 object-contain"
+                                            className="h-10 object-contain"
                                         />
                                     </div>
                                 )}
-                            </div>
-                            <div className="text-center mb-2">
                                 <h2 className="text-lg font-semibold">{displayValue(companyDetails.businessName)}</h2>
                                 <p className="text-xs">{displayValue(companyDetails.address)}</p>
                                 <p className="text-xs">
@@ -632,8 +632,8 @@ const PrintableBill = ({ billData =
                             </div>
 
                             {/* Products Table Section */}
-                            <h3 className="font-semibold text-left bg-gray-100 mb-1">Bill Details</h3>
-                            <div className="p-1 mb-2 flex-grow border-collapse">
+                            <h3 className="font-semibold text-left bg-gray-100">Bill Details</h3>
+                            <div className="p-1 mb-1 flex-grow border-collapse">
                                 <table className="w-full border-collapse">
                                     <thead>
                                         <tr className="border border-black">
@@ -669,7 +669,7 @@ const PrintableBill = ({ billData =
                                                     <td className="text-center py-1 border-r border-l border-black" style={{ fontSize: '12px' }}>
                                                         {displayValue(product.code)}
                                                     </td>
-                                                    <td className="text-center py-1 border-r border-l border-black font-semibold" style={{ fontSize: '12px' }}>
+                                                    <td className="text-center py-1 border-r border-l border-black font-bold" style={{ fontSize: '12px' }}>
                                                         {displayValue(product.name)}
                                                     </td>
                                                     <td className="text-center py-1 border-r border-l border-black" style={{ fontSize: '12px' }}>
@@ -684,10 +684,10 @@ const PrintableBill = ({ billData =
                                                     <td className="text-center py-1 border-r border-l border-black" style={{ fontSize: '12px' }}>
                                                         {formatPercentage(product.sgstAmount)}
                                                     </td>
-                                                    <td className="text-center py-1 border-r border-l border-black font-semibold" style={{ fontSize: '12px' }}>
+                                                    <td className="text-center py-1 border-r border-l border-black font-bold" style={{ fontSize: '12px' }}>
                                                         {quantity}{unit}
                                                     </td>
-                                                    <td className="text-center py-1 border-r border-l border-black font-semibold" style={{ fontSize: '12px' }}>
+                                                    <td className="text-center py-1 border-r border-l border-black font-bold" style={{ fontSize: '12px' }}>
                                                         {formatCurrency(total)}
                                                     </td>
                                                 </tr>
@@ -722,7 +722,7 @@ const PrintableBill = ({ billData =
                                                 {pageIndex === productChunks.length - 1 && (
                                                     <>
                                                         {/* Totals Section */}
-                                                        <div className=" p-2 mb-2">
+                                                        <div className=" p-1 mb-1">
                                                             <div className="flex justify-between mb-1">
                                                                 <span className="font-semibold text-[12px]">Subtotal:</span>
                                                                 <span>{formatCurrency(totals.subtotal)}</span>
@@ -774,16 +774,16 @@ const PrintableBill = ({ billData =
                                                                     )}
                                                                 </div>
                                                             )}
-                                                            <div className='flex justify-between mt-2'>
+                                                            <div className='flex justify-between mt-1'>
 
                                                                 <div className="">
-                                                                    <p className="text-[12px]">Amount In Words: {numberToWords(totals.grandTotal)}</p>
+                                                                    <p className="text-[10px]">Amount In Words: {numberToWords(totals.grandTotal)}</p>
                                                                 </div>
                                                                 {billData.payment && (
                                                                     <div className="">
-                                                                        <p><span className="font-semibold">Payment Method:</span> {billData.payment.method.toUpperCase()}</p>
+                                                                        <p><span className="font-semibold text-[10px]">Payment Method:</span> {billData.payment.method.toUpperCase()}</p>
                                                                         {billData.payment.transactionId && (
-                                                                            <p><span className="font-semibold">Transaction ID:</span> {billData.payment.transactionId}</p>
+                                                                            <p><span className="font-semibold text-[10px]">Transaction ID:</span> {billData.payment.transactionId}</p>
                                                                         )}
                                                                     </div>
                                                                 )}
@@ -827,18 +827,18 @@ const PrintableBill = ({ billData =
                             {pageIndex === productChunks.length - 1 && (
                                 <>
                                     {/* Totals Section */}
-                                    <div className="border border-black p-2 mb-2">
+                                    <div className="border border-black p-1 mb-1">
 
 
                                         {/* Footer Section */}
                                         <div className="bordermt-auto flex justify-between">
-                                            <div className="mb-2">
+                                            <div className="mb-1">
                                                 <h3 className="font-semibold mb-1">Company's Bank Details:</h3>
                                                 <p className="text-xs">Bank Name: {displayValue(companyDetails.bankName, '')}</p>
                                                 <p className="text-xs">Account No: {displayValue(companyDetails.accountNumber, '')}</p>
                                                 <p className="text-xs">IFSC: {displayValue(companyDetails.ifscCode, '')}</p>
                                             </div>
-                                            <div className="text-center pt-20">
+                                            <div className="text-center pt-16">
                                                 <p className="font-semibold">Authorized Signatory</p>
                                             </div>
                                         </div>
