@@ -481,7 +481,9 @@ const PrintableBill = ({ billData =
                         <div className='flex justify-between'>
                             <p className="font-semibold">GSTIN: {displayValue(companyDetails.gstin, 'N/A')}</p>
                             {/* <p className="font-semibold">{billData.isOutstandingPaymentOnly ? 'Credit Settlement' : 'Original for Buyer'}</p> */}
-                            {companyDetails.logoUrl && (
+                        </div>
+                        <div className="text-center mb-2">
+                              {companyDetails.logoUrl && (
                                 <div className="flex justify-center mb-1">
                                     <img
                                         src={companyDetails.logoUrl}
@@ -490,8 +492,6 @@ const PrintableBill = ({ billData =
                                     />
                                 </div>
                             )}
-                        </div>
-                        <div className="text-center mb-2">
                             <h2 className="text-lg font-semibold">{displayValue(companyDetails.businessName)}</h2>
                             <p className="text-xs">{displayValue(companyDetails.address)}</p>
                             <p className="text-xs">
