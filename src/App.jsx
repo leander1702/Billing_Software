@@ -78,8 +78,7 @@ const App = () => {
             </>
           </AuthWrapper>
         } />
-      </Routes>
-     
+      </Routes> 
       </div>
     </>
   );

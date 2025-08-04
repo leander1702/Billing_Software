@@ -5,25 +5,20 @@ import Api from '../services/api';
 const PaymentModal = ({ currentBillData, onClose, onComplete, isSaving }) => {
   const {
     customer = {},
-    currentBillTotal = 0, // Amount of the *new* bill being generated (can be 0 if no new bill)
-    // previousOutstandingCredit is now primarily for display/information, not calculation of grandTotal
-    billNumber: newBillNumber = '' // The bill number for the *new* bill
+    currentBillTotal = 0,
+    billNumber: newBillNumber = ''
   } = currentBillData || {};
 
   const [amountPaid, setAmountPaid] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState('cash');
-  const [transactionId, setTransactionId] = useState('');
   const [change, setChange] = useState(0);
   const [remainingUnpaid, setRemainingUnpaid] = useState(0);
   const [unpaidBills, setUnpaidBills] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedBills, setSelectedBills] = useState([]); // Stores _id of selected unpaid bills
 
-  // State for the user-entered amount for outstanding bills
-  // This defaults to the sum of selected bills' unpaid amounts, but can be manually reduced.
   const [userEnteredOutstandingPayment, setUserEnteredOutstandingPayment] = useState(0);
 
-  // Calculate the total actual outstanding amount for all selected bills (read-only, max limit)
   const actualSelectedOutstandingTotal = useMemo(() => {
     return unpaidBills.reduce((sum, bill) => {
       if (selectedBills.includes(bill._id)) {
@@ -33,33 +28,27 @@ const PaymentModal = ({ currentBillData, onClose, onComplete, isSaving }) => {
     }, 0);
   }, [unpaidBills, selectedBills]);
 
-  // Effect to update userEnteredOutstandingPayment when selected bills change
   useEffect(() => {
-    // When selected bills change, default the user-entered amount to the full selected outstanding total.
-    // The user can then reduce this amount if they only want to partially pay the selected outstanding.
     setUserEnteredOutstandingPayment(actualSelectedOutstandingTotal);
-  }, [actualSelectedOutstandingTotal]); // Depend on the calculated total of selected outstanding bills
+  }, [actualSelectedOutstandingTotal]); 
 
-  // Calculate the grand total based on current bill + user-entered amount for outstanding
   const calculatedGrandTotal = useMemo(() => {
     const totalCurrentBill = currentBillTotal || 0;
-    const totalSelectedOutstanding = parseInt(userEnteredOutstandingPayment) || 0; // Use parseInt for integer
+    const totalSelectedOutstanding = parseInt(userEnteredOutstandingPayment) || 0; 
     return totalCurrentBill + totalSelectedOutstanding;
-  }, [currentBillTotal, userEnteredOutstandingPayment]); // Depends on userEnteredOutstandingPayment
+  }, [currentBillTotal, userEnteredOutstandingPayment]); 
 
-  // Effect to initialize amountPaid to calculatedGrandTotal
+  
   useEffect(() => {
     setAmountPaid(calculatedGrandTotal);
   }, [calculatedGrandTotal]);
 
-  // Effect to recalculate change and remaining unpaid whenever amountPaid or calculatedGrandTotal changes
   useEffect(() => {
     const calculatedChange = amountPaid - calculatedGrandTotal;
     setChange(Math.max(0, calculatedChange));
     setRemainingUnpaid(Math.max(0, -calculatedChange));
   }, [amountPaid, calculatedGrandTotal]);
 
-  // Effect to fetch unpaid bills when customer ID is available
   useEffect(() => {
     if (customer?.id) {
       fetchUnpaidBills();
@@ -72,7 +61,6 @@ const PaymentModal = ({ currentBillData, onClose, onComplete, isSaving }) => {
       const response = await Api.get(`/bills/unpaid`, {
         params: { customerId: customer.id }
       });
-      // Filter to ensure only bills with actual unpaid amounts are shown
       setUnpaidBills(Array.isArray(response.data) ? 
         response.data.filter(bill => (bill.unpaidAmountForThisBill || 0) > 0) : []);
     } catch (error) {
@@ -126,8 +114,6 @@ const PaymentModal = ({ currentBillData, onClose, onComplete, isSaving }) => {
     const isNewBillPresent = (currentBillTotal || 0) > 0;
 
     if (isNewBillPresent) {
-      // Scenario 1: New Bill Payment + Optional Outstanding Payments
-      // 1. Prioritize payment for the current bill
       if (remainingPayment >= currentBillTotal) {
         paymentForCurrentBill = currentBillTotal;
         remainingPayment -= currentBillTotal;
@@ -136,29 +122,24 @@ const PaymentModal = ({ currentBillData, onClose, onComplete, isSaving }) => {
         remainingPayment = 0;
       }
 
-      // 2. Then, allocate remaining payment to selected outstanding bills, up to userEnteredOutstandingPayment
       paymentForOutstandingBills = Math.min(remainingPayment, parseInt(userEnteredOutstandingPayment) || 0); // Use parseInt
-      remainingPayment -= paymentForOutstandingBills; // Update remaining payment after allocating to outstanding
+      remainingPayment -= paymentForOutstandingBills; 
     } else {
-      // Scenario 2: Outstanding Bill Payment ONLY (no new bill)
-      // All payment goes towards selected outstanding bills, up to userEnteredOutstandingPayment
-      paymentForCurrentBill = 0; // No new bill to pay for
+      paymentForCurrentBill = 0;
       paymentForOutstandingBills = Math.min(remainingPayment, parseInt(userEnteredOutstandingPayment) || 0); // Use parseInt
-      remainingPayment -= paymentForOutstandingBills; // Update remaining payment
+      remainingPayment -= paymentForOutstandingBills; 
     }
 
-    // Call the onComplete callback with all necessary payment details
     onComplete({
       method: paymentMethod,
-      amountPaid: parseInt(amountPaid), // Use parseInt for integer
-      transactionId: transactionId.trim() || undefined,
-      isNewBillPayment: isNewBillPresent, // Indicate if a new bill is part of this transaction
-      currentBillPayment: paymentForCurrentBill, // Amount applied to the current (new) bill
-      selectedOutstandingPayment: paymentForOutstandingBills, // Amount applied to selected outstanding bills
-      selectedUnpaidBillIds: selectedBills, // IDs of bills the user selected for payment
-      totalAmountDueForSelected: calculatedGrandTotal, // The total amount that the user is attempting to cover
-      newBillNumber: isNewBillPresent ? newBillNumber : undefined, // Pass new bill number only if present
-      customer: customer, // Pass customer details back to parent for easier API calls
+      amountPaid: parseInt(amountPaid), 
+      isNewBillPayment: isNewBillPresent, 
+      currentBillPayment: paymentForCurrentBill, 
+      selectedOutstandingPayment: paymentForOutstandingBills, 
+      selectedUnpaidBillIds: selectedBills, 
+      totalAmountDueForSelected: calculatedGrandTotal,
+      newBillNumber: isNewBillPresent ? newBillNumber : undefined, 
+      customer: customer,
     });
   };
 
@@ -408,22 +389,6 @@ const PaymentModal = ({ currentBillData, onClose, onComplete, isSaving }) => {
               />
             </div>
           </div>
-
-          {paymentMethod !== 'cash' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Transaction Reference
-              </label>
-              <input
-                type="text"
-                value={transactionId}
-                onChange={(e) => setTransactionId(e.target.value)}
-                className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 
-                focus:outline-none focus:ring-blue-500 focus:border-blue-500 "
-                placeholder="Enter reference number"
-              />
-            </div>
-          )}
 
           {/* Payment Status */}
           <div className="bg-gray-50 p-4 rounded-lg">

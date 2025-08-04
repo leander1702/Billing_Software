@@ -33,6 +33,7 @@ const BillingSystem = ({
   const [isCheckingCustomer, setIsCheckingCustomer] = useState(false);
   const [customerOutstandingCredit, setCustomerOutstandingCredit] = useState(0);
   const [transportCharge, setTransportCharge] = useState(0);
+  const [paymentMethod, setPaymentMethod] = useState('cash');
   const printRef = useRef(null);
   const paymentRef = useRef(null);
   const customerNameFocusRef = useRef(null);
@@ -50,6 +51,10 @@ const BillingSystem = ({
     setCustomerOutstandingCredit(0);
     setTransportCharge(0);
     setCurrentBill(null);
+  };
+
+  const handlePaymentMethodChange = (method) => {
+    setPaymentMethod(method);
   };
 
   const printBill = async (billData) => {
@@ -122,7 +127,7 @@ const BillingSystem = ({
           ? `BILL-${customer.id || 'NEW'}-${Date.now()}`
           : `CREDIT-${customer.id || 'NEW'}-${Date.now()}`,
         payment: {
-          method: 'cash',
+          method: paymentMethod,
           currentBillPayment: calculateCurrentBillTotal(),
           selectedOutstandingPayment: customerOutstandingCredit,
           amountPaid: customerOutstandingCredit
@@ -399,41 +404,43 @@ const BillingSystem = ({
           <div className="flex flex-col lg:flex-row gap-1 h-full">
             {/* Left Column - Products */}
             <div className="lg:w-3/4  flex flex-col ">
-              <ProductList
-                products={products}
-                onAdd={handleAddProduct}
-                onEdit={handleEditProduct}
-                onRemove={handleRemoveProduct}
-                onFocusProductSearch={onFocusProductSearch}
-                onFocusProductCode={onFocusProductCode}
-                onFocusQuantity={onFocusQuantity}
-                onTriggerAddProduct={onTriggerAddProduct}
-                transportCharge={transportCharge}
-                onTransportChargeChange={handleTransportChargeChange}
-              />
+               <ProductList
+              products={products}
+              onAdd={handleAddProduct}
+              onEdit={handleEditProduct}
+              onRemove={handleRemoveProduct}
+              onFocusProductSearch={onFocusProductSearch}
+              onFocusProductCode={onFocusProductCode}
+              onFocusQuantity={onFocusQuantity}
+              onTriggerAddProduct={onTriggerAddProduct}
+              transportCharge={transportCharge}
+              onTransportChargeChange={handleTransportChargeChange}
+              paymentMethod={paymentMethod}
+              onPaymentMethodChange={setPaymentMethod}
+            />
 
             </div>
             <div className="w-full lg:w-1/4 flex flex-col gap-1 ">
-              <CashierDetails />
-              <CustomerDetails
-                customer={customer}
-                onSubmit={handleCustomerSubmit}
-                onEdit={() => toast.info('Customer editing feature coming soon!')}
-                isCheckingCustomer={isCheckingCustomer}
-                onFocusCustomerName={customerNameFocusRef}
-                onFocusPhoneNumber={phoneNumberFocusRef}
-              />
-              <BillSummary
-                products={products}
-                customerOutstandingCredit={customerOutstandingCredit}
-                currentBillTotal={calculateCurrentBillTotal()}
-                grandTotal={calculateGrandTotal()}
-                transportCharge={transportCharge}
-                onProceedToPayment={handleProceedToPayment}
-                onPrint={handlePrint}
-                onTriggerPrint={printRef}
-                onTriggerPayment={paymentRef}
-              />
+             <CashierDetails />
+            <CustomerDetails
+              customer={customer}
+              onSubmit={handleCustomerSubmit}
+              onEdit={() => toast.info('Customer editing feature coming soon!')}
+              isCheckingCustomer={isCheckingCustomer}
+              onFocusCustomerName={customerNameFocusRef}
+              onFocusPhoneNumber={phoneNumberFocusRef}
+            />
+            <BillSummary
+              products={products}
+              customerOutstandingCredit={customerOutstandingCredit}
+              currentBillTotal={calculateCurrentBillTotal()}
+              grandTotal={calculateGrandTotal()}
+              transportCharge={transportCharge}
+              onProceedToPayment={handleProceedToPayment}
+              onPrint={handlePrint}
+              onTriggerPrint={printRef}
+              onTriggerPayment={paymentRef}
+            />
             </div>
           </div>
         </div>

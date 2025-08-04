@@ -5,10 +5,12 @@ import { FiEdit2, FiTrash2, FiSearch, FiPlus, FiRefreshCw } from 'react-icons/fi
 import Api from '../services/api';
 import Swal from 'sweetalert2';
 import CalculatorPopup from './CalculatorPopup';
-import Navbar from './Navbar';
+import { FaHistory } from "react-icons/fa";
+import Modal from 'react-modal';
+import * as ReactDOMClient from 'react-dom/client';
+import PrintableBill from './PrintableBill';
 
-
-function ProductList({ products, onAdd, onEdit, onRemove, transportCharge,
+function ProductList({ products, onAdd, onEdit, onRemove, transportCharge, paymentMethod, onPaymentMethodChange,
   onTransportChargeChange = (value) => { }, }) {
   const initialProduct = {
     code: '',
@@ -43,6 +45,9 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge,
   const [showNameSuggestions, setShowNameSuggestions] = useState(false);
   const [localTransportCharge, setLocalTransportCharge] = useState(transportCharge);
   const [showCalculator, setShowCalculator] = useState(false);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [recentBills, setRecentBills] = useState([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const unitTypes = [
     { value: 'piece', label: 'Pcs' },
     { value: 'box', label: 'Box' },
@@ -64,6 +69,10 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge,
   const priceInputRef = useRef(null);
   const hsnCodeInputRef = useRef(null);
   const transportChargeInputRef = useRef(null);
+  const historyButtonRef = useRef(null);
+
+  // Track if mouse is over history button
+  const [isMouseOverHistory, setIsMouseOverHistory] = useState(false);
 
   // Fetch stock data
   useEffect(() => {
@@ -346,23 +355,46 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge,
 
   const checkStockAvailability = async (productName, quantity, unit) => {
     try {
-      // First get the product details
+      // First get the product details including unit conversion rates
       const productRes = await Api.get(`/products/name/${productName}`);
       const product = productRes.data;
 
       if (!product) {
-        return { isAvailable: false, available: 0 };
+        return { isAvailable: false, available: 0, availableDisplay: 0 };
       }
 
-      // Then get the stock information
-      const stockRes = await Api.get(`/products/check-stock/${product.productCode}`, {
-        params: { unit, quantity }
-      });
+      // Get the stock information
+      const stockRes = await Api.get(`products/stock/${product.productCode}`);
+      const stockData = stockRes.data;
+      const availableQuantity = stockData.stock?.availableQuantity || 0;
 
-      return stockRes.data;
+      // Calculate available quantity in the requested unit
+      let availableInRequestedUnit = availableQuantity;
+      let isAvailable = true;
+      let conversionRate = 1;
+
+      if (unit === product.baseUnit) {
+        // For base unit, compare directly
+        isAvailable = availableQuantity >= quantity;
+        availableInRequestedUnit = availableQuantity;
+      } else if (unit === product.secondaryUnit) {
+        // For secondary unit, convert to base unit for comparison
+        conversionRate = product.conversionRate || 1;
+        const requestedQuantityInBase = quantity;
+        isAvailable = availableQuantity >= requestedQuantityInBase;
+        availableInRequestedUnit = availableQuantity * conversionRate;
+      }
+
+      return {
+        isAvailable,
+        available: availableQuantity,
+        availableDisplay: availableInRequestedUnit,
+        unit,
+        conversionRate
+      };
     } catch (err) {
       console.error('Error checking stock:', err);
-      return { isAvailable: false, available: 0 };
+      return { isAvailable: false, available: 0, availableDisplay: 0 };
     }
   };
 
@@ -387,7 +419,7 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge,
       product.selectedUnit || product.baseUnit
     );
 
-    if (stockCheck.isAvailable && !stockCheck.isAvailable) {
+    if (!stockCheck.isAvailable) {
       const availableInRequestedUnit = stockCheck.availableDisplay.toFixed(2);
       const requestedUnit = product.selectedUnit || product.baseUnit;
 
@@ -413,7 +445,7 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge,
       unit: product.selectedUnit || product.baseUnit,
       isManualPrice: product.isManualPrice,
       availableStock: stockCheck.available,
-      hsnCode: product.hsnCode // Include HSN Code in the product
+      hsnCode: product.hsnCode
     };
 
     if (editingIndex !== null) {
@@ -425,7 +457,11 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge,
 
     setProduct(initialProduct);
     setNameSuggestions([]);
-    searchProductInputRef.current?.focus();
+
+    // Focus on product code input after submission
+    setTimeout(() => {
+      productCodeInputRef.current?.focus();
+    }, 0);
   };
 
   const handleEdit = (index) => {
@@ -464,6 +500,68 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge,
     return unit ? unit.label : unitValue;
   };
 
+  // Add this useEffect for modal accessibility
+  useEffect(() => {
+    Modal.setAppElement('#root');
+  }, []);
+
+  // Fetch recent bills function
+  const fetchRecentBills = async () => {
+    try {
+      setIsLoadingHistory(true);
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const response = await Api.get(`/bills?fromDate=${twentyFourHoursAgo}`);
+      const reversedBills = response.data.reverse();
+      setRecentBills(reversedBills);
+      setShowHistoryModal(true);
+    } catch (error) {
+      console.error('Error fetching recent bills:', error);
+      toast.error('Failed to load recent bills');
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  };
+
+  // Print bill function
+  const handlePrintBill = async (bill) => {
+    try {
+      const companyRes = await Api.get('/companies');
+      const companyDetails = companyRes.data[0];
+
+      const printWindow = window.open('', '_blank');
+      printWindow.document.write(`
+      <html>
+        <head>
+          <title>Bill ${bill.billNumber}</title>
+          <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+        </head>
+        <body>
+          <div id="print-root"></div>
+          <script>
+            window.onload = function() {
+              setTimeout(() => {
+                window.print();
+                setTimeout(() => window.close(), 500);
+              }, 500);
+            };
+          </script>
+        </body>
+      </html>
+    `);
+
+      printWindow.document.close();
+
+      const rootElement = printWindow.document.getElementById('print-root');
+      const root = ReactDOMClient.createRoot(rootElement);
+      root.render(
+        <PrintableBill billData={bill} companyDetails={companyDetails} />
+      );
+    } catch (error) {
+      console.error('Print error:', error);
+      toast.error('Failed to print bill: ' + (error.response?.data?.message || error.message));
+    }
+  };
+
   return (
     <div className="flex flex-col h-full">
       {/* Product Form */}
@@ -474,199 +572,217 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge,
             <div className="relative w-full md:w-1/3">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <FiSearch className="text-gray-400" />
-              </div>
-              <input
-                type="text"
-                placeholder="Search product code or name"
-                className="w-full pl-10 pr-3 py-1 text-sm border border-gray-300 rounded-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                ref={searchProductInputRef}
-              />
-            </div>
-          </div>
-
-          {/* Product Form Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-9 gap-2">
-            {/* Product Code */}
-            <div className="col-span-1">
-              <label className="block text-xs font-medium text-gray-700 mb-1">Code <span className="text-red-500">*</span></label>
-              <input
-                type="text"
-                name="code"
-                value={product.code}
-                onChange={handleChange}
-                ref={productCodeInputRef}
-                className="w-full px-3 py-1 text-sm border border-gray-300 rounded-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                required
-              />
-            </div>
-
-            {/* Product Name with Suggestions */}
-            <div className="col-span-1 relative">
-              <label className="block text-xs font-medium text-gray-700 mb-1">Name</label>
-              <input
-                type="text"
-                name="name"
-                value={product.name}
-                onChange={handleNameChange}
-                onFocus={() => setShowNameSuggestions(true)}
-                onBlur={() => setTimeout(() => setShowNameSuggestions(false), 200)}
-                ref={productNameInputRef}
-                className="w-full px-3 py-1 text-sm border border-gray-300 rounded-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-              {showNameSuggestions && nameSuggestions.length > 0 && (
-                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-sm shadow-lg max-h-60 overflow-auto">
-                  {nameSuggestions.map((item, index) => (
-                    <div
-                      key={index}
-                      className="px-3 py-1 hover:bg-blue-50 cursor-pointer border-b border-gray-100 text-sm"
-                      onClick={() => handleSelectNameSuggestion(item)}
-                    >
-                      <div className="font-medium">{item.productName}</div>
-                    </div>
-                  ))}
                 </div>
-              )}
+                <input
+                  type="text"
+                  placeholder="Search product code or name"
+                  className="w-full pl-10 pr-3 py-1 text-sm border border-gray-300 rounded-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  ref={searchProductInputRef}
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button" // Important: Make sure this is type="button" to prevent form submission
+                  ref={historyButtonRef}
+                  onClick={fetchRecentBills}
+                  onMouseEnter={() => setIsMouseOverHistory(true)}
+                  onMouseLeave={() => setIsMouseOverHistory(false)}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-sm text-sm font-medium transition-colors"
+                >
+                  <FaHistory className="text-base" /> History
+                </button>
+              </div>
             </div>
 
-            {/* Unit Selection */}
-            <div className="col-span-1">
-              <label className="block text-xs font-medium text-gray-700 mb-1">Unit</label>
-              <select
-                name="selectedUnit"
-                value={product.selectedUnit || product.baseUnit}
-                onChange={handleUnitChange}
-                className="w-full px-3 py-1 text-sm border border-gray-300 rounded-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            {/* Product Form Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-9 gap-2">
+              {/* Product Code */}
+              <div className="col-span-1">
+                <label className="block text-xs font-medium text-gray-700 mb-1">Code <span className="text-red-500">*</span></label>
+                <input
+                  type="text"
+                  name="code"
+                  value={product.code}
+                  onChange={handleChange}
+                  ref={productCodeInputRef}
+                  className="w-full px-3 py-1 text-sm border border-gray-300 rounded-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  required
+                />
+              </div>
+
+              {/* Product Name with Suggestions */}
+              <div className="col-span-1 relative">
+                <label className="block text-xs font-medium text-gray-700 mb-1">Name</label>
+                <input
+                  type="text"
+                  name="name"
+                  value={product.name}
+                  onChange={handleNameChange}
+                  onFocus={() => setShowNameSuggestions(true)}
+                  onBlur={() => setTimeout(() => setShowNameSuggestions(false), 200)}
+                  ref={productNameInputRef}
+                  className="w-full px-3 py-1 text-sm border border-gray-300 rounded-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+                {showNameSuggestions && nameSuggestions.length > 0 && (
+                  <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-sm shadow-lg max-h-60 overflow-auto">
+                    {nameSuggestions.map((item, index) => (
+                      <div
+                        key={index}
+                        className="px-3 py-1 hover:bg-blue-50 cursor-pointer border-b border-gray-100 text-sm"
+                        onClick={() => handleSelectNameSuggestion(item)}
+                      >
+                        <div className="font-medium">{item.productName}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Unit Selection */}
+              <div className="col-span-1">
+                <label className="block text-xs font-medium text-gray-700 mb-1">Unit</label>
+                <select
+                  name="selectedUnit"
+                  value={product.selectedUnit || product.baseUnit}
+                  onChange={handleUnitChange}
+                  className="w-full px-3 py-1 text-sm border border-gray-300 rounded-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  disabled={isLoading}
+                >
+                  {availableUnits.map(unit => (
+                    <option key={unit} value={unit}>
+                      {getUnitLabel(unit)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Quantity */}
+              <div className="col-span-1">
+                <label className="block text-xs font-medium text-gray-700 mb-1">Qty <span className="text-red-500">*</span></label>
+                <input
+                  type="text"
+                  name="quantity"
+                  value={product.quantity}
+                  onChange={handleChange}
+                  ref={quantityInputRef}
+                  inputMode="numeric"
+                  pattern="[0-9]*[.,]?[0-9]*"
+                  className="no-arrows w-full px-3 py-1 text-sm border border-gray-300 rounded-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  required
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      addProductButtonRef.current?.click();
+                    }
+                  }}
+                />
+              </div>
+
+              {/* Basic Price */}
+              <div className="col-span-1">
+                <label className="block text-xs font-medium text-gray-700 mb-1">Basic Price</label>
+                <input
+                  type="text"
+                  name="basicPrice"
+                  value={product.basicPrice.toFixed(2)}
+                  readOnly
+                  className="w-full px-3 py-1 text-sm border bg-gray-50 rounded-sm"
+                />
+              </div>
+
+              {/* GST */}
+              <div className="col-span-1">
+                <label className="block text-xs font-medium text-gray-700 mb-1">GST %</label>
+                <input
+                  type="text"
+                  name="gst"
+                  value={product.gst}
+                  onChange={handleChange}
+                  inputMode="numeric"
+                  pattern="[0-9]*[.,]?[0-9]*"
+                  className="no-arrows w-full px-3 py-1 text-sm border border-gray-300 rounded-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              {/* SGST */}
+              <div className="col-span-1">
+                <label className="block text-xs font-medium text-gray-700 mb-1">SGST %</label>
+                <input
+                  type="text"
+                  name="sgst"
+                  value={product.sgst}
+                  onChange={handleChange}
+                  inputMode="numeric"
+                  pattern="[0-9]*[.,]?[0-9]*"
+                  className="no-arrows w-full px-3 py-1 text-sm border border-gray-300 rounded-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              {/* Price */}
+              <div className="col-span-1">
+                <label className="block text-xs font-medium text-gray-700 mb-1">Price <span className="text-red-500">*</span></label>
+                <input
+                  type="number"
+                  name="price"
+                  value={product.price}
+                  onChange={handleChange}
+                  inputMode="decimal"
+                  step="0.01"
+                  min="0"
+                  ref={priceInputRef}
+                  className="no-arrows w-full px-3 py-1 text-sm border border-gray-300 rounded-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  required
+                />
+              </div>
+
+              {/* Total Price */}
+              <div className="col-span-1">
+                <label className="block text-xs font-medium text-gray-700 mb-1">Total</label>
+                <input
+                  type="text"
+                  name="totalPrice"
+                  value={product.totalPrice.toFixed(2)}
+                  readOnly
+                  className="w-full px-3 py-1 text-sm border bg-gray-50 rounded-sm font-medium text-blue-600"
+                />
+              </div>
+            </div>
+
+            {/* Add/Update Product Button */}
+            <div className="flex justify-end ">
+              <button
+                type="submit"
+                className={`px-4 py-1 text-sm font-medium rounded-sm shadow-sm flex items-center gap-2 transition-colors ${editingIndex !== null
+                  ? 'bg-yellow-500 hover:bg-yellow-600 text-white'
+                  : 'bg-blue-600 hover:bg-blue-700 text-white'
+                  } ${isLoading ? 'opacity-75 cursor-not-allowed' : ''
+                  }`}
+                ref={addProductButtonRef}
                 disabled={isLoading}
               >
-                {availableUnits.map(unit => (
-                  <option key={unit} value={unit}>
-                    {getUnitLabel(unit)}
-                  </option>
-                ))}
-              </select>
+                {isLoading ? (
+                  <>
+                    <FiRefreshCw className="animate-spin" />
+                    Processing...
+                  </>
+                ) : editingIndex !== null ? (
+                  <>
+                    <FiEdit2 />
+                    Update Product
+                  </>
+                ) : (
+                  <>
+                    <FiPlus />
+                    Add Product
+                  </>
+                )}
+              </button>
             </div>
-
-            {/* Quantity */}
-            <div className="col-span-1">
-              <label className="block text-xs font-medium text-gray-700 mb-1">Qty <span className="text-red-500">*</span></label>
-              <input
-                type="text"
-                name="quantity"
-                value={product.quantity}
-                onChange={handleChange}
-                ref={quantityInputRef}
-                inputMode="numeric"
-                pattern="[0-9]*[.,]?[0-9]*"
-                className="no-arrows w-full px-3 py-1 text-sm border border-gray-300 rounded-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                required
-              />
-            </div>
-
-            {/* Basic Price */}
-            <div className="col-span-1">
-              <label className="block text-xs font-medium text-gray-700 mb-1">Basic Price</label>
-              <input
-                type="text"
-                name="basicPrice"
-                value={product.basicPrice.toFixed(2)}
-                readOnly
-                className="w-full px-3 py-1 text-sm border bg-gray-50 rounded-sm"
-              />
-            </div>
-
-            {/* GST */}
-            <div className="col-span-1">
-              <label className="block text-xs font-medium text-gray-700 mb-1">GST %</label>
-              <input
-                type="text"
-                name="gst"
-                value={product.gst}
-                onChange={handleChange}
-                inputMode="numeric"
-                pattern="[0-9]*[.,]?[0-9]*"
-                className="no-arrows w-full px-3 py-1 text-sm border border-gray-300 rounded-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-
-            {/* SGST */}
-            <div className="col-span-1">
-              <label className="block text-xs font-medium text-gray-700 mb-1">SGST %</label>
-              <input
-                type="text"
-                name="sgst"
-                value={product.sgst}
-                onChange={handleChange}
-                inputMode="numeric"
-                pattern="[0-9]*[.,]?[0-9]*"
-                className="no-arrows w-full px-3 py-1 text-sm border border-gray-300 rounded-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-
-            {/* Price */}
-            <div className="col-span-1">
-              <label className="block text-xs font-medium text-gray-700 mb-1">Price <span className="text-red-500">*</span></label>
-              <input
-                type="number"
-                name="price"
-                value={product.price}
-                onChange={handleChange}
-                inputMode="decimal"
-                step="0.01"
-                min="0"
-                ref={priceInputRef}
-                className="no-arrows w-full px-3 py-1 text-sm border border-gray-300 rounded-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                required
-              />
-            </div>
-
-            {/* Total Price */}
-            <div className="col-span-1">
-              <label className="block text-xs font-medium text-gray-700 mb-1">Total</label>
-              <input
-                type="text"
-                name="totalPrice"
-                value={product.totalPrice.toFixed(2)}
-                readOnly
-                className="w-full px-3 py-1 text-sm border bg-gray-50 rounded-sm font-medium text-blue-600"
-              />
-            </div>
-          </div>
-
-          {/* Add/Update Product Button */}
-          <div className="flex justify-end ">
-            <button
-              type="submit"
-              className={`px-4 py-1 text-sm font-medium rounded-sm shadow-sm flex items-center gap-2 transition-colors ${editingIndex !== null
-                ? 'bg-yellow-500 hover:bg-yellow-600 text-white'
-                : 'bg-blue-600 hover:bg-blue-700 text-white'
-                } ${isLoading ? 'opacity-75 cursor-not-allowed' : ''
-                }`}
-              ref={addProductButtonRef}
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <>
-                  <FiRefreshCw className="animate-spin" />
-                  Processing...
-                </>
-              ) : editingIndex !== null ? (
-                <>
-                  <FiEdit2 />
-                  Update Product
-                </>
-              ) : (
-                <>
-                  <FiPlus />
-                  Add Product
-                </>
-              )}
-            </button>
-          </div>
-        </form>
-      </div>
-
+          </form>
+        </div>
+        
       {/* Products Table */}
       <div className="flex-1 flex flex-col bg-white border border-gray-200 rounded-sm shadow-sm">
         <div className="flex-1 overflow-auto" style={{ maxHeight: 'calc(100vh - 320px)' }} >
@@ -733,17 +849,17 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge,
                   );
                 })
               ) : (
-                <tr>
-                  <td colSpan="14" className="px-4 py-8 text-center text-gray-500">
-                    {products.length > 0
-                      ? 'No products match your search'
-                      : 'No products added yet. Start by adding products above.'}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+                  <tr>
+                    <td colSpan="14" className="px-4 py-8 text-center text-gray-500">
+                      {products.length > 0
+                        ? 'No products match your search'
+                        : 'No products added yet. Start by adding products above.'}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         {/* Transport Charge Input */}
         <div className="bg-gray-50 p-2 border-t">
           <div className='flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 w-full'>
@@ -756,7 +872,23 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge,
               </button>
             </div>
 
-            {/* Transport Charge (Right) */}
+              <div className="flex items-center gap-2">
+                <label className="text-sm font-medium text-gray-700 whitespace-nowrap">Payment Method:</label>
+                <select
+                  value={paymentMethod}
+                  onChange={(e) => {
+                    onPaymentMethodChange(e.target.value); // Notify parent
+                  }}
+                  className="w-32 px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="cash">Cash</option>
+                  <option value="card">Card</option>
+                  <option value="upi">UPI</option>
+                  <option value="bank-transfer">Bank Transfer</option>
+                </select>
+              </div>
+
+               {/* Transport Charge (Right) */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-1 sm:gap-2 w-full sm:w-auto">
               <label className="text-sm font-medium text-gray-700 whitespace-nowrap">
                 Transport Charge:
@@ -771,21 +903,21 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge,
                 className="w-full sm:w-32 no-arrows px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                 ref={transportChargeInputRef}
               />
+              </div>
+
+              {/* Calculator Popup Component */}
+              {showCalculator && (
+                <CalculatorPopup
+                  onClose={() => setShowCalculator(false)}
+                  onCalculate={(result) => {
+                    // Handle the calculation result if needed
+                    setShowCalculator(false);
+                  }}
+                />
+              )}
             </div>
 
-            {/* Calculator Popup Component */}
-            {showCalculator && (
-              <CalculatorPopup
-                onClose={() => setShowCalculator(false)}
-                onCalculate={(result) => {
-                  // Handle the calculation result if needed
-                  setShowCalculator(false);
-                }}
-              />
-            )}
-          </div>
-
-          {/* Footer with total */}
+{/* Footer with total */}
           <div className="bg-gray-50 py-2 mt-2 border-t">
             <div className="flex flex-col gap-3">
               {/* Item count - now at top */}
@@ -861,9 +993,62 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge,
               </div>
             </div>
           </div>
+            </div>
+          </div>
         </div>
+        <Modal
+          isOpen={showHistoryModal}
+          onRequestClose={() => setShowHistoryModal(false)}
+          contentLabel="Recent Bills"
+          className="modal bg-white rounded-lg p-4 max-w-4xl mx-auto my-8 max-h-[80vh] overflow-auto"
+          overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+        >
+          <div className="relative">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold">Recent Bills (Last 24 Hours)</h2>
+              <button
+                onClick={() => setShowHistoryModal(false)}
+                className="text-gray-500 hover:text-gray-700 text-2xl"
+              >
+                &times;
+              </button>
+            </div>
+
+            {isLoadingHistory ? (
+              <div className="flex justify-center py-8">
+                <FiRefreshCw className="animate-spin text-blue-500 text-2xl" />
+              </div>
+            ) : recentBills.length === 0 ? (
+              <p className="text-gray-500 text-center py-8">No bills found in the last 24 hours</p>
+            ) : (
+              <div className="space-y-4">
+                {recentBills.map((bill) => (
+                  <div key={bill._id} className="border p-3 rounded-lg hover:bg-gray-50">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <p className="font-medium">
+                          {bill.customer?.name || 'Unknown Customer'} - {bill.billNumber}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          {new Date(bill.createdAt).toLocaleString()} -
+                          Total: ₹{bill.grandTotal?.toFixed(2) || '0.00'}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => handlePrintBill(bill)}
+                        className="px-3 py-1 bg-blue-100 text-blue-600 rounded hover:bg-blue-200 text-sm"
+                      >
+                        Print
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </Modal>
       </div>
-    </div>
+    </>
   );
 }
 export default ProductList;

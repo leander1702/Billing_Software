@@ -12,24 +12,16 @@ const UserLogin = () => {
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
+  // Check for existing login on component mount
   useEffect(() => {
-    // Cleanup function to remove event listener
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-    };
-  }, []);
-
-  const handleBeforeUnload = () => {
     const userData = localStorage.getItem('loggedInUser');
     if (userData) {
-      const { rememberMe } = JSON.parse(userData);
-      if (!rememberMe) {
-        localStorage.removeItem('loggedInUser');
-      }
+      const parsedData = JSON.parse(userData);
+      // Check if login is still valid (optional: you could add expiration check here)
+      navigate("/");
     }
-  };
+  }, [navigate]);
 
-  // UserLogin.jsx
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
@@ -62,11 +54,6 @@ const UserLogin = () => {
         };
 
         localStorage.setItem('loggedInUser', JSON.stringify(userData));
-
-        if (!rememberMe) {
-          window.addEventListener('beforeunload', handleBeforeUnload);
-        }
-
         navigate("/");
       } else {
         setError("Invalid phone number or password");
@@ -146,7 +133,7 @@ const UserLogin = () => {
               </div>
 
               {/* Remember Me */}
-              <div className="flex items-center">
+              {/* <div className="flex items-center">
                 <input
                   id="remember-me"
                   type="checkbox"
@@ -155,7 +142,7 @@ const UserLogin = () => {
                   className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                 />
                 <label htmlFor="remember-me" className="ml-2 text-sm text-gray-700">Remember me</label>
-              </div>
+              </div> */}
 
               {/* Submit Button */}
               <button
