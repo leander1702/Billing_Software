@@ -93,7 +93,7 @@ function BillSummary({
             </span>
           </div>
           <div className="flex justify-between text-sm">
-            <span className="text-gray-600">GST:</span>
+            <span className="text-gray-600">CGST:</span>
             <span className="font-medium">
               ₹{products.length ? calculateGST().toFixed(2) : '0.00'}
             </span>

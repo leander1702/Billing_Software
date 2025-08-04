@@ -697,7 +697,7 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge, payme
 
             {/* GST */}
             <div className="col-span-1">
-              <label className="block text-xs font-medium text-gray-700 mb-1">GST %</label>
+              <label className="block text-xs font-medium text-gray-700 mb-1">CGST %</label>
               <input
                 type="text"
                 name="gst"
@@ -798,7 +798,7 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge, payme
                 <th className="px-4 py-1 text-left border-b font-medium text-gray-700">HSN Code</th>
                 <th className="px-4 py-1 text-left border-b font-medium text-gray-700">MRP</th>
                 <th className="px-4 py-1 text-left border-b font-medium text-gray-700">Basic Price</th>
-                <th className="px-4 py-1 text-left border-b font-medium text-gray-700">GST% </th>
+                <th className="px-4 py-1 text-left border-b font-medium text-gray-700">CGST% </th>
                 <th className="px-4 py-1 text-left border-b font-medium text-gray-700">SGST% </th>
                 <th className="px-4 py-1 text-left border-b font-medium text-gray-700">Price</th>
                 <th className="px-4 py-1 text-left border-b font-medium text-gray-700">Qty/unit</th>
@@ -946,14 +946,14 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge, payme
                   </div>
 
                   <div className="flex justify-between sm:hidden">
-                    <span className="text-sm font-medium text-gray-700">GST:</span>
+                    <span className="text-sm font-medium text-gray-700">CGST:</span>
                     <span className="text-sm text-gray-700">
                       ₹{filteredProducts.reduce((sum, item) => sum + (item.gstAmount * item.quantity), 0).toFixed(2)}
                     </span>
                   </div>
                   <div className="hidden sm:block">
                     <span className="text-sm font-medium text-gray-700">
-                      GST: ₹{filteredProducts.reduce((sum, item) => sum + (item.gstAmount * item.quantity), 0).toFixed(2)}
+                      CGST: ₹{filteredProducts.reduce((sum, item) => sum + (item.gstAmount * item.quantity), 0).toFixed(2)}
                     </span>
                   </div>
 
