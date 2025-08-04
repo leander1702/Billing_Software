@@ -670,7 +670,7 @@ const PrintableBill = ({ billData = {
                             <div className='flex justify-between'>
                                 <p className="font-semibold">GSTIN: {displayValue(companyDetails.gstin, 'N/A')}</p>
                                 {pageIndex > 0 && (
-                                    <p className="font-semibold text-red-500">(Continued from previous page)</p>
+                                    <p className="font-semibold text-red-500">(continuation)</p>
                                 )}
                             </div>
                             <div className="text-center mb-1">
@@ -864,8 +864,8 @@ const PrintableBill = ({ billData = {
                                                         </div>
                                                     </>
                                                 ) : (
-                                                    <div className="text-right text-red-500 font-semibold mt-[200px]">
-                                                        (Continued on next page...)
+                                                    <div className="text-right text-red-500 font-semibold mt-20 mb-15">
+                                                        (Continued...)
                                                     </div>
                                                 )}
                                             </td>
