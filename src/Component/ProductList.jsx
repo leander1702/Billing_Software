@@ -215,26 +215,29 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge, payme
   }, [transportCharge]);
 
   const handleTransportChargeChange = (e) => {
-    let value = parseFloat(e.target.value) || 0;
-    value = Math.max(0, value); // Ensure non-negative
-    value = parseFloat(value.toFixed(2)); // Round to 2 decimal places
+    let value = e.target.value;
 
-    setLocalTransportCharge(value);
-
-    // Safely call the callback (if provided)
-    if (typeof onTransportChargeChange === 'function') {
-      onTransportChargeChange(value);
+    // Remove leading zeros unless it's just "0" or "0."
+    if (value.length > 1 && value.startsWith('0') && !value.startsWith('0.')) {
+      value = value.replace(/^0+/, '') || '0';
     }
+
+    // Convert to number and validate
+    let numericValue = parseFloat(value) || 0;
+    numericValue = Math.max(0, numericValue); // Ensure non-negative
+    numericValue = parseFloat(numericValue.toFixed(2)); // Round to 2 decimal places
+
+    setLocalTransportCharge(value); // Keep as string for display
+    onTransportChargeChange(numericValue); // Send numeric value to parent
   };
 
   const handleTransportBlur = () => {
-    if (isNaN(localTransportCharge)) {
-      const value = 0;
-      setLocalTransportCharge(value);
-      if (typeof onTransportChargeChange === 'function') {
-        onTransportChargeChange(value);
-      }
-    }
+    // When field loses focus, ensure we have a proper number
+    const numericValue = parseFloat(localTransportCharge) || 0;
+    const formattedValue = numericValue.toFixed(2);
+
+    setLocalTransportCharge(formattedValue);
+    onTransportChargeChange(numericValue);
   };
 
   useEffect(() => {
@@ -511,8 +514,8 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge, payme
       setIsLoadingHistory(true);
       const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       const response = await Api.get(`/bills?fromDate=${twentyFourHoursAgo}`);
-      const reversedBills = response.data.reverse();
-      setRecentBills(reversedBills);
+      const last50Bills = response.data.slice(-50).reverse();
+      setRecentBills(last50Bills);
       setShowHistoryModal(true);
     } catch (error) {
       console.error('Error fetching recent bills:', error);
@@ -894,12 +897,13 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge, payme
                 Transport Charge:
               </label>
               <input
-                type="number"
+                type="text" // Changed from "number" to "text" for better control
                 value={localTransportCharge}
                 onChange={handleTransportChargeChange}
                 onBlur={handleTransportBlur}
-                min="0"
+                inputMode="decimal" // Shows numeric keypad on mobile
                 step="0.01"
+                min="0"
                 className="w-full sm:w-32 no-arrows px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                 ref={transportChargeInputRef}
               />
