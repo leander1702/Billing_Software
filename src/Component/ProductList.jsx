@@ -563,16 +563,15 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge, payme
   };
 
   return (
-    <>
-      <div className="flex flex-col h-full relative">
-        {/* Product Form */}
-        <div className="bg-white p-2 border border-gray-200 rounded-sm shadow-sm">
-          <form onSubmit={handleSubmit} className="space-y-2">
-            {/* Search Bar */}
-            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-              <div className="relative w-full md:w-1/3">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <FiSearch className="text-gray-400" />
+    <div className="flex flex-col h-full">
+      {/* Product Form */}
+      <div className="bg-white p-2 border border-gray-200 rounded-sm shadow-sm mb-1">
+        <form onSubmit={handleSubmit} className="space-y-2">
+          {/* Search Bar */}
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4 ">
+            <div className="relative w-full md:w-1/3">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <FiSearch className="text-gray-400" />
                 </div>
                 <input
                   type="text"
@@ -783,73 +782,73 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge, payme
             </div>
           </form>
         </div>
+        
+      {/* Products Table */}
+      <div className="flex-1 flex flex-col bg-white border border-gray-200 rounded-sm shadow-sm">
+        <div className="flex-1 overflow-auto" style={{ maxHeight: 'calc(100vh - 320px)' }} >
+          <table className="min-w-full border-collapse text-xs sm:text-sm">
+            <thead className="bg-gray-100 sticky top-0">
+              <tr>
+                <th className="px-4 py-1 text-left border-b font-medium text-gray-700">S.No</th>
+                <th className="px-4 py-1 text-left border-b font-medium text-gray-700">Code</th>
+                <th className="px-4 py-1 text-left border-b font-medium text-gray-700">Name</th>
+                <th className="px-4 py-1 text-left border-b font-medium text-gray-700">HSN Code</th>
+                <th className="px-4 py-1 text-left border-b font-medium text-gray-700">MRP</th>
+                <th className="px-4 py-1 text-left border-b font-medium text-gray-700">Basic Price</th>
+                <th className="px-4 py-1 text-left border-b font-medium text-gray-700">GST% </th>
+                <th className="px-4 py-1 text-left border-b font-medium text-gray-700">SGST% </th>
+                <th className="px-4 py-1 text-left border-b font-medium text-gray-700">Price</th>
+                <th className="px-4 py-1 text-left border-b font-medium text-gray-700">Qty/unit</th>
+                <th className="px-4 py-1 text-left border-b font-medium text-gray-700">Total</th>
+                <th className="px-4 py-1 text-left border-b font-medium text-gray-700">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredProducts.length > 0 ? (
+                filteredProducts.map((item, index) => {
+                  const basicPriceTotal = item.basicPrice;
+                  const gstAmountTotal = item.gstAmount;
+                  const sgstAmountTotal = item.sgstAmount;
+                  const priceTotal = item.price;
+                  const totalPrice = item.price * item.quantity;
 
-        {/* Products Table */}
-        <div className="flex-1 flex flex-col  bg-white border border-gray-200 rounded-sm shadow-sm overflow-hidden">
-          <div className="flex-1 overflow-auto" style={{ maxHeight: 'calc(100vh - 350px)' }}>
-            <table className="min-w-full border-collapse text-sm">
-              <thead className="bg-gray-100 sticky top-0">
-                <tr>
-                  <th className="px-4 py-1 text-left border-b font-medium text-gray-700">S.No</th>
-                  <th className="px-4 py-1 text-left border-b font-medium text-gray-700">Code</th>
-                  <th className="px-4 py-1 text-left border-b font-medium text-gray-700">Name</th>
-                  <th className="px-4 py-1 text-left border-b font-medium text-gray-700">HSN Code</th>
-                  <th className="px-4 py-1 text-left border-b font-medium text-gray-700">MRP</th>
-                  <th className="px-4 py-1 text-left border-b font-medium text-gray-700">Basic Price</th>
-                  <th className="px-4 py-1 text-left border-b font-medium text-gray-700">GST% </th>
-                  <th className="px-4 py-1 text-left border-b font-medium text-gray-700">SGST% </th>
-                  <th className="px-4 py-1 text-left border-b font-medium text-gray-700">Price</th>
-                  <th className="px-4 py-1 text-left border-b font-medium text-gray-700">Qty/unit</th>
-                  <th className="px-4 py-1 text-left border-b font-medium text-gray-700">Total</th>
-                  <th className="px-4 py-1 text-left border-b font-medium text-gray-700">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredProducts.length > 0 ? (
-                  filteredProducts.map((item, index) => {
-                    const basicPriceTotal = item.basicPrice;
-                    const gstAmountTotal = item.gstAmount;
-                    const sgstAmountTotal = item.sgstAmount;
-                    const priceTotal = item.price;
-                    const totalPrice = item.price * item.quantity;
-
-                    return (
-                      <tr key={item.id} className="hover:bg-gray-50 border-b">
-                        <td className="px-4 py-3">{index + 1}</td>
-                        <td className="px-4 py-3 font-medium">{item.code}</td>
-                        <td className="px-4 py-3">{item.name}</td>
-                        <td className="px-4 py-3">{item.hsnCode}</td>
-                        <td className="px-4 py-3">₹{item.mrpPrice.toFixed(2)}</td>
-                        <td className="px-4 py-3">₹{basicPriceTotal.toFixed(2)}</td>
-                        <td className="px-4 py-3">{item.gst}% </td>
-                        <td className="px-4 py-3">{item.sgst}% </td>
-                        <td className="px-4 py-3">₹{priceTotal.toFixed(2)}</td>
-                        <td className="px-4 py-3">
-                          {Number.isInteger(item.quantity) ? item.quantity : item.quantity.toFixed(2)} {getUnitLabel(item.unit)}
-                        </td>
-                        <td className="px-4 py-1 font-medium">₹{totalPrice.toFixed(2)}</td>
-                        <td className="px-4 py-1">
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => handleEdit(index)}
-                              className="text-blue-600 hover:text-blue-800 p-1 rounded hover:bg-blue-50"
-                              title="Edit"
-                            >
-                              <FiEdit2 />
-                            </button>
-                            <button
-                              onClick={() => handleRemove(index)}
-                              className="text-red-600 hover:text-red-800 p-1 rounded hover:bg-red-50"
-                              title="Remove"
-                            >
-                              <FiTrash2 />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })
-                ) : (
+                  return (
+                    <tr key={item.id} className="hover:bg-gray-50 border-b">
+                      <td className="px-4 py-3">{index + 1}</td>
+                      <td className="px-4 py-3 font-medium">{item.code}</td>
+                      <td className="px-4 py-3">{item.name}</td>
+                      <td className="px-4 py-3">{item.hsnCode}</td>
+                      <td className="px-4 py-3">₹{item.mrpPrice.toFixed(2)}</td>
+                      <td className="px-4 py-3">₹{basicPriceTotal.toFixed(2)}</td>
+                      <td className="px-4 py-3">{item.gst}% </td>
+                      <td className="px-4 py-3">{item.sgst}% </td>
+                      <td className="px-4 py-3">₹{priceTotal.toFixed(2)}</td>
+                      <td className="px-4 py-3">
+                        {Number.isInteger(item.quantity) ? item.quantity : item.quantity.toFixed(2)} {getUnitLabel(item.unit)}
+                      </td>
+                      <td className="px-4 py-1 font-medium">₹{totalPrice.toFixed(2)}</td>
+                      <td className="px-4 py-1">
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleEdit(index)}
+                            className="text-blue-600 hover:text-blue-800 p-1 rounded hover:bg-blue-50"
+                            title="Edit"
+                          >
+                            <FiEdit2 />
+                          </button>
+                          <button
+                            onClick={() => handleRemove(index)}
+                            className="text-red-600 hover:text-red-800 p-1 rounded hover:bg-red-50"
+                            title="Remove"
+                          >
+                            <FiTrash2 />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              ) : (
                   <tr>
                     <td colSpan="14" className="px-4 py-8 text-center text-gray-500">
                       {products.length > 0
@@ -861,18 +860,17 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge, payme
               </tbody>
             </table>
           </div>
-          {/* Transport Charge Input */}
-          <div className="bg-gray-50 py-2 px-4 border-t">
-            <div className='flex justify-between items-center w-full'>
-              {/* Calculator Button (Left) */}
-              <div>
-                <button
-                  onClick={() => setShowCalculator(true)}
-                  className="px-3 py-1.5 text-sm font-normal text-white bg-gray-500 rounded-md hover:bg-gray-700 transition-colors flex items-center gap-1"
-                >
-                  Calculator
-                </button>
-              </div>
+        {/* Transport Charge Input */}
+        <div className="bg-gray-50 p-2 border-t">
+          <div className='flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 w-full'>
+            <div>
+              <button
+                onClick={() => setShowCalculator(true)}
+                className="px-3 py-1.5 text-sm font-normal text-white bg-gray-500 rounded-md hover:bg-gray-700 transition-colors flex items-center gap-1"
+              >
+                Calculator
+              </button>
+            </div>
 
               <div className="flex items-center gap-2">
                 <label className="text-sm font-medium text-gray-700 whitespace-nowrap">Payment Method:</label>
@@ -890,19 +888,21 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge, payme
                 </select>
               </div>
 
-              {/* Transport Charge (Right) */}
-              <div className="flex items-center gap-2">
-                <label className="text-sm font-medium text-gray-700 whitespace-nowrap">Transport Charge:</label>
-                <input
-                  type="number"
-                  value={localTransportCharge}
-                  onChange={handleTransportChargeChange}
-                  onBlur={handleTransportBlur}
-                  min="0"
-                  step="0.01"
-                  className="w-32 no-arrows px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                  ref={transportChargeInputRef}
-                />
+               {/* Transport Charge (Right) */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-1 sm:gap-2 w-full sm:w-auto">
+              <label className="text-sm font-medium text-gray-700 whitespace-nowrap">
+                Transport Charge:
+              </label>
+              <input
+                type="number"
+                value={localTransportCharge}
+                onChange={handleTransportChargeChange}
+                onBlur={handleTransportBlur}
+                min="0"
+                step="0.01"
+                className="w-full sm:w-32 no-arrows px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                ref={transportChargeInputRef}
+              />
               </div>
 
               {/* Calculator Popup Component */}
@@ -917,33 +917,82 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge, payme
               )}
             </div>
 
-            {/* Footer with total */}
+{/* Footer with total */}
+          <div className="bg-gray-50 py-2 mt-2 border-t">
+            <div className="flex flex-col gap-3">
+              {/* Item count - now at top */}
+              <span className="text-sm text-gray-600 text-start sm:text-left">
+                {filteredProducts.length} {filteredProducts.length === 1 ? 'item' : 'items'}
+              </span>
 
-            <div className="bg-gray-50  py-2 mt-2 border-t sticky bottom-0">
-              <div className="flex flex-col sm:flex-row justify-between items-center ">
-                <span className="text-sm text-gray-600">
-                  {filteredProducts.length} {filteredProducts.length === 1 ? 'item' : 'items'}
-                </span>
-                <div className="flex items-center gap-6">
-                  <span className="text-sm font-medium text-gray-700">
-                    Subtotal: ₹{filteredProducts.reduce((sum, item) => sum + (item.basicPrice * item.quantity), 0).toFixed(2)}
-                  </span>
-                  <span className="text-sm font-medium text-gray-700">
-                    GST: ₹{filteredProducts.reduce((sum, item) => sum + (item.gstAmount * item.quantity), 0).toFixed(2)}
-                  </span>
-                  <span className="text-sm font-medium text-gray-700">
-                    SGST: ₹{filteredProducts.reduce((sum, item) => sum + (item.sgstAmount * item.quantity), 0).toFixed(2)}
-                  </span>
-                  {transportCharge > 0 && (
-                    <span className="text-sm font-medium text-gray-700">
-                      Transport: ₹{transportCharge.toFixed(2)}
+              {/* Totals - stacked on mobile */}
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                {/* Tax breakdown - in a 2-column layout */}
+                <div className="grid grid-cols-1 gap-x-4 gap-y-1 sm:flex sm:items-center sm:gap-6">
+                  <div className="flex justify-between sm:hidden">
+                    <span className="text-sm font-medium text-gray-700">Subtotal:</span>
+                    <span className="text-sm text-gray-700">
+                      ₹{filteredProducts.reduce((sum, item) => sum + (item.basicPrice * item.quantity), 0).toFixed(2)}
                     </span>
+                  </div>
+                  <div className="hidden sm:block">
+                    <span className="text-sm font-medium text-gray-700">
+                      Subtotal: ₹{filteredProducts.reduce((sum, item) => sum + (item.basicPrice * item.quantity), 0).toFixed(2)}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between sm:hidden">
+                    <span className="text-sm font-medium text-gray-700">GST:</span>
+                    <span className="text-sm text-gray-700">
+                      ₹{filteredProducts.reduce((sum, item) => sum + (item.gstAmount * item.quantity), 0).toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="hidden sm:block">
+                    <span className="text-sm font-medium text-gray-700">
+                      GST: ₹{filteredProducts.reduce((sum, item) => sum + (item.gstAmount * item.quantity), 0).toFixed(2)}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between sm:hidden">
+                    <span className="text-sm font-medium text-gray-700">SGST:</span>
+                    <span className="text-sm text-gray-700">
+                      ₹{filteredProducts.reduce((sum, item) => sum + (item.sgstAmount * item.quantity), 0).toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="hidden sm:block">
+                    <span className="text-sm font-medium text-gray-700">
+                      SGST: ₹{filteredProducts.reduce((sum, item) => sum + (item.sgstAmount * item.quantity), 0).toFixed(2)}
+                    </span>
+                  </div>
+
+                  {transportCharge > 0 && (
+                    <div className="flex justify-between sm:hidden">
+                      <span className="text-sm font-medium text-gray-700">Transport:</span>
+                      <span className="text-sm text-gray-700">
+                        ₹{transportCharge.toFixed(2)}
+                      </span>
+                    </div>
                   )}
-                  <span className="text-lg font-bold text-blue-600">
-                    Grand Total: ₹{calculateGrandTotal().toFixed(2)}
-                  </span>
+                  {transportCharge > 0 && (
+                    <div className="hidden sm:block">
+                      <span className="text-sm font-medium text-gray-700">
+                        Transport: ₹{transportCharge.toFixed(2)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Grand total - now more prominent */}
+                <div className="mt-2 sm:mt-0">
+                  <div className="flex justify-between sm:block">
+                    <span className="text-sm font-bold text-gray-700 ">Grand Total:</span>
+                    <span className="text-lg font-bold text-blue-600 pl-2">₹{calculateGrandTotal().toFixed(2)}
+                    </span>
+                  </div>
                 </div>
               </div>
+            </div>
+          </div>
             </div>
           </div>
         </div>
@@ -1002,5 +1051,4 @@ function ProductList({ products, onAdd, onEdit, onRemove, transportCharge, payme
     </>
   );
 }
-
 export default ProductList;

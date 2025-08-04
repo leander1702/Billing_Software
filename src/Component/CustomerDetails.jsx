@@ -186,7 +186,7 @@ function CustomerDetails({ customer, onSubmit, onFocusCustomerName, onFocusPhone
  return (
   <div className="bg-white p-2 border border-gray-200 rounded-sm shadow-sm">
     <div className="mb-1">
-      <h2 className="text-sm font-semibold text-gray-800">Customer Details</h2>
+      <h2 className="text-base font-semibold text-gray-800">Customer Details</h2>
       <div className="border-t border-gray-200 mt-1"></div>
     </div>
 

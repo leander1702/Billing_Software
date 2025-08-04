@@ -8,6 +8,8 @@ import Api from '../services/api';
 import * as ReactDOMClient from 'react-dom/client';
 import CashierDetails from './CashierDetails';
 import PrintableBill from './PrintableBill';
+import Navbar from './Navbar';
+import Header from './Header';
 
 const BillingSystem = ({
   onFocusProductSearch,
@@ -396,11 +398,13 @@ const BillingSystem = ({
   };
 
   return (
-    <div className="bg-gradient-to-br from-blue-50 to-blue-100 font-inter max-h-screen">
-      <div className="mx-auto p-1 max-w-full">
-        <div className="flex flex-col lg:flex-row gap-1">
-          <div className="lg:w-3/4">
-            <ProductList
+    <div className="font-inter h-full">
+      <div className="h-full flex flex-col">
+        <div className="flex-1 overflow-auto p-1">  {/* Changed to overflow-auto */}
+          <div className="flex flex-col lg:flex-row gap-1 h-full">
+            {/* Left Column - Products */}
+            <div className="lg:w-3/4  flex flex-col ">
+               <ProductList
               products={products}
               onAdd={handleAddProduct}
               onEdit={handleEditProduct}
@@ -414,9 +418,10 @@ const BillingSystem = ({
               paymentMethod={paymentMethod}
               onPaymentMethodChange={setPaymentMethod}
             />
-          </div>
-          <div className="lg:w-1/4 flex flex-col gap-1">
-            <CashierDetails />
+
+            </div>
+            <div className="w-full lg:w-1/4 flex flex-col gap-1 ">
+             <CashierDetails />
             <CustomerDetails
               customer={customer}
               onSubmit={handleCustomerSubmit}
@@ -436,10 +441,10 @@ const BillingSystem = ({
               onTriggerPrint={printRef}
               onTriggerPayment={paymentRef}
             />
+            </div>
           </div>
         </div>
       </div>
-
       {showPaymentModal && currentBill && (
         <PaymentModal
           currentBillData={currentBill}
@@ -450,6 +455,8 @@ const BillingSystem = ({
       )}
     </div>
   );
+  ;
+
 };
 
 export default BillingSystem;

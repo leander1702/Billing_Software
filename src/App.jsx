@@ -26,27 +26,30 @@ const App = () => {
   return (
     <>
       {/* <ToastContainer /> */}
-      <Routes>
-        <Route path='/login' element={<UserLogin />} />
+      <div className="min-h-screen bg-blue-50">
+        <Routes>
+          <Route path='/login' element={<UserLogin />} />
 
-        <Route path="/" element={
-          <AuthWrapper>
-            <>
-              <Header />
-              <BillingSystem
-                onFocusProductSearch={focusProductSearchRef}
-                onFocusProductCode={focusProductCodeRef}
-                onFocusQuantity={focusQuantityRef}
-                onTriggerAddProduct={triggerAddProductRef}
-                onFocusCustomerName={focusCustomerNameRef}
-                onFocusPhoneNumber={focusPhoneNumberRef}
-                onTriggerHold={triggerHoldRef}
-                onTriggerPrint={triggerPrintRef}
-                onTriggerPayment={triggerPaymentRef}
-              />
-            </>
-          </AuthWrapper>
-        } />
+          <Route path="/" element={
+            <AuthWrapper>
+              <div className="flex flex-col h-screen">
+                <Header />
+                <div className="flex-1 overflow-hidden">
+                  <BillingSystem
+                    onFocusProductSearch={focusProductSearchRef}
+                    onFocusProductCode={focusProductCodeRef}
+                    onFocusQuantity={focusQuantityRef}
+                    onTriggerAddProduct={triggerAddProductRef}
+                    onFocusCustomerName={focusCustomerNameRef}
+                    onFocusPhoneNumber={focusPhoneNumberRef}
+                    onTriggerHold={triggerHoldRef}
+                    onTriggerPrint={triggerPrintRef}
+                    onTriggerPayment={triggerPaymentRef}
+                  />
+                </div>
+              </div>
+            </AuthWrapper>
+          } />
 
         <Route path='/sales' element={
           <AuthWrapper>
@@ -75,18 +78,8 @@ const App = () => {
             </>
           </AuthWrapper>
         } />
-      </Routes>
-      {/* <Navbar
-        onFocusProductSearch={focusProductSearchRef}
-        onFocusProductCode={focusProductCodeRef}
-        onFocusQuantity={focusQuantityRef}
-        onTriggerAddProduct={triggerAddProductRef}
-        onFocusCustomerName={focusCustomerNameRef}
-        onFocusPhoneNumber={focusPhoneNumberRef}
-        onTriggerHold={triggerHoldRef}
-        onTriggerPrint={triggerPrintRef}
-        onTriggerPayment={triggerPaymentRef}
-      /> */}
+      </Routes> 
+      </div>
     </>
   );
 };
